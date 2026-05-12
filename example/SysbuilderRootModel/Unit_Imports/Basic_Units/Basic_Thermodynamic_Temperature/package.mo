@@ -1,0 +1,3 @@
+within SysbuilderRootModel.Unit_Imports.Basic_Units;
+package Basic_Thermodynamic_Temperature "Basic Thermodynamic Temperature" extends Modelica.Icons.Package;
+end Basic_Thermodynamic_Temperature;

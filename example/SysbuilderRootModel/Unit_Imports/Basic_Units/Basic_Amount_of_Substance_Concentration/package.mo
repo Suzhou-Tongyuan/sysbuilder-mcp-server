@@ -1,0 +1,3 @@
+within SysbuilderRootModel.Unit_Imports.Basic_Units;
+package Basic_Amount_of_Substance_Concentration "Basic Amount of Substance Concentration" extends Modelica.Icons.Package;
+end Basic_Amount_of_Substance_Concentration;

@@ -1,0 +1,1 @@
+"""Sysbuilder MCP server package."""

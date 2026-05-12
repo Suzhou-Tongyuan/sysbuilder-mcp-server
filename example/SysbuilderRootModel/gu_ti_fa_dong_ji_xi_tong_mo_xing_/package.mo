@@ -1,0 +1,3 @@
+within SysbuilderRootModel;
+package gu_ti_fa_dong_ji_xi_tong_mo_xing_ "固体发动机系统模型" extends Modelica.Icons.Package;
+end gu_ti_fa_dong_ji_xi_tong_mo_xing_;

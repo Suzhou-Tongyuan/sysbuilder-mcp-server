@@ -1,0 +1,4 @@
+interface:
+  display_name: "SysML建模规范"
+  short_description: "在本工作区按 SysML 规范进行建模、审查与追溯"
+  default_prompt: "Use $sysml-modeling-standard to create, review, or refine a SysML or Sysbuilder-compliant model for this workspace."

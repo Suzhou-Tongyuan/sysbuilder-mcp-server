@@ -1,0 +1,3 @@
+within SysbuilderRootModel.gu_ti_fa_dong_ji_xi_tong_mo_xing_._05_jie_kou_mo_xing_;
+package L1_xi_tong_ceng_ "L1_ÏµÍ³²ã" extends Modelica.Icons.Package;
+end L1_xi_tong_ceng_;

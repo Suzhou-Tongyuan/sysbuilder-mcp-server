@@ -1,0 +1,13 @@
+# Workspace rules for the Sysbuilder project.
+#
+# Codex `.rules` files are used for command approval and sandbox policy.
+# Task-behavior instructions for this workspace live in `AGENTS.md`.
+#
+# This workspace requires reading `.codex/rules/Sysbuilder建模要求.md`
+# before any Sysbuilder modeling action. That requirement is enforced via
+# `AGENTS.md`.
+#
+# When running Python scripts for Sysbuilder modeling, Modelica generation,
+# or report generation, scripts must be saved as UTF-8 and executed in UTF-8
+# mode. Do not rely on inline terminal piping that can degrade Chinese names
+# into `????` through the shell/stdin encoding chain.
