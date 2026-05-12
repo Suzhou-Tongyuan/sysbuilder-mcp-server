@@ -178,4 +178,4 @@ mcp_server_config.json
 
 ## 许可协议
 
-本项目基于 MIT License 发布，详见根目录下的 `LICENSE`。
+本项目采用 MIT 许可证授权，有关详细信息，请参阅 [LICENSE](./LICENSE) 文件。
