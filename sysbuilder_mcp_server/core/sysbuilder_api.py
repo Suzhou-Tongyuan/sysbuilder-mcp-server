@@ -1414,7 +1414,6 @@ def AutoLayoutDiagram(fullDiagramName: str = "") -> bool:
         AutoLayoutDiagram(fullDiagramName) 用于执行视图自动布局。
         fullDiagramName 为可缺省参数：传入图全名时，若目标图未打开或不是当前视图，会先打开并切换为当前视图再执行自动布局；
         传空字符串时，对当前视图执行自动布局（当前视图为空时返回 False）。
-        当前仅支持需求图、模块定义图、内部模块图，其它视图暂不处理。
     示例
         示例1：对指定视图执行自动布局
         >>> print(AutoLayoutDiagram("Package1.System.IBD1"))
@@ -1527,22 +1526,27 @@ def _check_graph_name_and_position(graphName: str, position):
     return position
 
 @mw_connect_decorator(_MwConnect._process_path)
-def CreateQuickPanelLine(lineKind: str, fullDiagramName: str, startElementName: str, endElementName: str) -> bool:
+def CreateQuickPanelLine(lineKind: str, fullDiagramName: str, startElementName: str, endElementName: str, lineName: str = "") -> bool:
     """
     创建QuickPanel连线（通用入口）
 
     语法
-        >>> CreateQuickPanelLine(lineKind:str, fullDiagramName:str, startElementName:str, endElementName:str)
+        >>> CreateQuickPanelLine(lineKind:str, fullDiagramName:str, startElementName:str, endElementName:str, lineName:str = "")
     说明
-        CreateQuickPanelLine(lineKind, fullDiagramName, startElementName, endElementName)用于按QuickPanel连线类型创建连线。
+        CreateQuickPanelLine(lineKind, fullDiagramName, startElementName, endElementName, lineName)用于按QuickPanel连线类型创建连线。
         lineKind支持以下关键字：`copy`、`satisfy`、`derive`、`dependency`、`containment`、`refine`、`trace`、`verify`、
         `import`、`control_flow`、`object_flow`、`connector`、`binding_connector`、`transition`、`include`、`extend`、
         `association`、`generalization`、`allocate`、`directed_association`、`aggregation`、`composition`。
         其中`control_flow`、`object_flow`和`transition`支持在找不到端点SysML元素时按图形名称兜底定位；
         `connector`和`binding_connector`除支持元素全名外，还支持以`组成属性名.端口名`形式传入图中的端口限定名。
         不同lineKind仅允许在对应视图中创建，且后端会同时校验端点类型、端点方向以及关系合法性；创建失败时返回False。
+
+        lineName参数用于设置连线名称（可选，默认为空）：
+        - 对于`control_flow`（控制流）：格式为 "[guard]" 时被视为守卫条件，例如 "[x > 0]"
+        - 对于其他类型连线：作为普通连线名称
     示例
         >>> print(CreateQuickPanelLine("satisfy", "Package1.REQ1", "Package1.func1", "Package1.req1"))
+        >>> print(CreateQuickPanelLine("control_flow", "Package1.ACT1", "Package1.actionA", "Package1.actionB", "[x > 10]"))
     输入参数
         lineKind - QuickPanel连线类型关键字
         数据类型：str
@@ -1551,6 +1555,8 @@ def CreateQuickPanelLine(lineKind: str, fullDiagramName: str, startElementName: 
         startElementName - 起点元素全名；部分线型也支持图形名称或端口限定名
         数据类型：str
         endElementName - 终点元素全名；部分线型也支持图形名称或端口限定名
+        数据类型：str
+        lineName - 连线名称/守卫条件（可选），控制流格式 "[guard]" 时被视为守卫
         数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
@@ -1796,18 +1802,23 @@ def CreatePackageImportLine(fullDiagramName: str, startElementName: str, endElem
     return CreateQuickPanelLine("import", fullDiagramName, startElementName, endElementName)
 
 @mw_connect_decorator(_MwConnect._process_path)
-def CreateActivityControlFlowLine(fullDiagramName: str, startElementName: str, endElementName: str) -> bool:
+def CreateActivityControlFlowLine(fullDiagramName: str, startElementName: str, endElementName: str, lineName: str = "") -> bool:
     """
     在活动图中创建control flow连线
 
     语法
-        >>> CreateActivityControlFlowLine(fullDiagramName:str, startElementName:str, endElementName:str)
+        >>> CreateActivityControlFlowLine(fullDiagramName:str, startElementName:str, endElementName:str, lineName:str = "")
     说明
-        CreateActivityControlFlowLine(fullDiagramName, startElementName, endElementName)用于在活动图中创建control flow连线。
+        CreateActivityControlFlowLine(fullDiagramName, startElementName, endElementName, lineName)用于在活动图中创建control flow连线。
         默认按元素全名解析端点；若端点是无SysML数据的逻辑节点，请改用CreateActivityControlFlowLineByGraphName。
         初始节点只能作为起点，活动终止节点和流终止节点只能作为终点。
+
+        lineName参数用于设置连线名称/守卫条件（可选，默认为空）：
+        - 格式为 "[guard]" 时被视为守卫条件，例如 "[x > 0]"
+        - 不带方括号时作为普通连线名称
     示例
         >>> print(CreateActivityControlFlowLine("Package1.ACT1", "Package1.actionA", "Package1.actionB"))
+        >>> print(CreateActivityControlFlowLine("Package1.ACT1", "Package1.decision", "Package1.actionA", "[x > 10]"))
     输入参数
         fullDiagramName - 目标活动图全名
         数据类型：str
@@ -1815,12 +1826,14 @@ def CreateActivityControlFlowLine(fullDiagramName: str, startElementName: str, e
         数据类型：str
         endElementName - 终点元素全名
         数据类型：str
+        lineName - 连线名称/守卫条件（可选），格式 "[guard]" 时被视为守卫
+        数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
     另请参阅
         CreateActivityControlFlowLineByGraphName
     """
-    return CreateQuickPanelLine("control_flow", fullDiagramName, startElementName, endElementName)
+    return CreateQuickPanelLine("control_flow", fullDiagramName, startElementName, endElementName, lineName)
 
 @mw_connect_decorator(_MwConnect._process_path)
 def CreateActivityObjectFlowLine(fullDiagramName: str, startElementName: str, endElementName: str) -> bool:
@@ -1834,14 +1847,16 @@ def CreateActivityObjectFlowLine(fullDiagramName: str, startElementName: str, en
         默认按元素全名解析端点；若端点是无SysML数据的逻辑节点，请改用CreateActivityObjectFlowLineByGraphName。
         当活动端点缺少输入端口或输出端口时，后端会按QuickPanel行为自动补齐端口后再创建连线。
         初始节点只能作为起点，活动终止节点和流终止节点只能作为终点。
+        支持以"元素全名.端口名"格式指定端点，如"活动1.out1"或"包1.活动1.out1"。
     示例
         >>> print(CreateActivityObjectFlowLine("Package1.ACT1", "Package1.actionA", "Package1.actionB"))
+        >>> print(CreateActivityObjectFlowLine("活动1.活动图1", "活动1.out1", "DecisionNode"))
     输入参数
         fullDiagramName - 目标活动图全名
         数据类型：str
-        startElementName - 起点元素全名
+        startElementName - 起点元素全名或"元素全名.端口名"格式
         数据类型：str
-        endElementName - 终点元素全名
+        endElementName - 终点元素全名或"元素全名.端口名"格式
         数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
@@ -2410,6 +2425,95 @@ def CreateStateJoinVerticalNode(fullDiagramName: str, graphName: str = "", posit
     position = _check_graph_name_and_position(graphName, position)
     return _run_func(CreateStateJoinVerticalNode, locals())
 
+@mw_connect_decorator(_MwConnect._process_path)
+def CreateState(fullDiagramName: str, graphName: str = "", position: list = None) -> bool:
+    """
+    在状态机图中创建状态
+
+    语法
+        >>> CreateState(fullDiagramName:str, graphName:str = "", position:list = None)
+    说明
+        CreateState(fullDiagramName, graphName, position)用于在状态机图中创建状态。
+        该接口会同时创建对应的SysML状态元素及其图形节点；未显式传入graphName时，系统会自动生成唯一图形名称。
+        graphName必须是不包含`.`的简单名；position用于指定图中的放置坐标，格式为`[x, y]`。
+    示例
+        >>> print(CreateState("Package1.STM1", "state1", [100, 200]))
+    输入参数
+        fullDiagramName - 目标状态机图全名
+        数据类型：str
+        graphName - 图中的显示名称；为空时自动生成
+        数据类型：str
+        position - 图中坐标，格式为[x, y]；不传则使用系统默认位置
+        数据类型：list
+    返回值
+        `bool` : 创建成功返回True，否则返回False
+    另请参阅
+        CreateStateTransitionLineByGraphName
+        SetStateEntry
+        SetStateDoActivity
+        SetStateExit
+    """
+    position = _check_graph_name_and_position(graphName, position)
+    return _run_func(CreateState, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CreateCompositeState(fullDiagramName: str, graphName: str = "", position: list = None) -> bool:
+    """
+    在状态机图中创建组合状态
+
+    语法
+        >>> CreateCompositeState(fullDiagramName:str, graphName:str = "", position:list = None)
+    说明
+        CreateCompositeState(fullDiagramName, graphName, position)用于在状态机图中创建组合状态。
+        该接口会同时创建对应的SysML状态元素及其图形节点，并自动创建1个区域；未显式传入graphName时，系统会自动生成唯一图形名称。
+        graphName必须是不包含`.`的简单名；position用于指定图中的放置坐标，格式为`[x, y]`。
+    示例
+        >>> print(CreateCompositeState("Package1.STM1", "composite_state1", [100, 200]))
+    输入参数
+        fullDiagramName - 目标状态机图全名
+        数据类型：str
+        graphName - 图中的显示名称；为空时自动生成
+        数据类型：str
+        position - 图中坐标，格式为[x, y]；不传则使用系统默认位置
+        数据类型：list
+    返回值
+        `bool` : 创建成功返回True，否则返回False
+    另请参阅
+        CreateStateTransitionLineByGraphName
+        SetStateSubMachine
+    """
+    position = _check_graph_name_and_position(graphName, position)
+    return _run_func(CreateCompositeState, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CreateOrthogonalState(fullDiagramName: str, graphName: str = "", position: list = None) -> bool:
+    """
+    在状态机图中创建正交状态
+
+    语法
+        >>> CreateOrthogonalState(fullDiagramName:str, graphName:str = "", position:list = None)
+    说明
+        CreateOrthogonalState(fullDiagramName, graphName, position)用于在状态机图中创建正交状态。
+        该接口会同时创建对应的SysML状态元素及其图形节点，并自动创建2个区域；未显式传入graphName时，系统会自动生成唯一图形名称。
+        graphName必须是不包含`.`的简单名；position用于指定图中的放置坐标，格式为`[x, y]`。
+    示例
+        >>> print(CreateOrthogonalState("Package1.STM1", "orthogonal_state1", [100, 200]))
+    输入参数
+        fullDiagramName - 目标状态机图全名
+        数据类型：str
+        graphName - 图中的显示名称；为空时自动生成
+        数据类型：str
+        position - 图中坐标，格式为[x, y]；不传则使用系统默认位置
+        数据类型：list
+    返回值
+        `bool` : 创建成功返回True，否则返回False
+    另请参阅
+        CreateStateTransitionLineByGraphName
+        CreateStateRegion
+    """
+    position = _check_graph_name_and_position(graphName, position)
+    return _run_func(CreateOrthogonalState, locals())
+
 def _check_simple_graph_name(name: str, param_name: str):
     """
     校验图形名称是否为“不可分隔简单名”。
@@ -2421,24 +2525,31 @@ def _check_simple_graph_name(name: str, param_name: str):
         raise ValueError(f"{param_name} must be a simple graph name without '.'.")
 
 @mw_connect_decorator(_MwConnect._process_path)
-def CreateActivityControlFlowLineByGraphName(fullDiagramName: str, startGraphName: str, endGraphName: str) -> bool:
+def CreateActivityControlFlowLineByGraphName(fullDiagramName: str, startGraphName: str, endGraphName: str, lineName: str = "") -> bool:
     """
     在活动图中按图形名称创建 control flow 连线
 
     语法
-        >>> CreateActivityControlFlowLineByGraphName(fullDiagramName:str, startGraphName:str, endGraphName:str)
+        >>> CreateActivityControlFlowLineByGraphName(fullDiagramName:str, startGraphName:str, endGraphName:str, lineName:str = "")
     说明
-        CreateActivityControlFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName)用于在活动图中按图形名称创建control flow连线。
+        CreateActivityControlFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName, lineName)用于在活动图中按图形名称创建control flow连线。
         startGraphName和endGraphName需传图中图块名称，必须为不包含`.`的简单名。
         后端会优先按SysML全名解析，找不到时自动按图形名称兜底定位并创建图线。
+
+        lineName参数用于设置连线名称/守卫条件（可选，默认为空）：
+        - 格式为 "[guard]" 时被视为守卫条件，例如 "[x > 0]"
+        - 不带方括号时作为普通连线名称
     示例
         >>> print(CreateActivityControlFlowLineByGraphName("Package1.ACT1", "initial_node", "decision_node"))
+        >>> print(CreateActivityControlFlowLineByGraphName("Package1.ACT1", "decision_node", "actionA", "[x > 10]"))
     输入参数
         fullDiagramName - 目标活动图全名
         数据类型：str
         startGraphName - 起点图形名称，不含`.`
         数据类型：str
         endGraphName - 终点图形名称，不含`.`
+        数据类型：str
+        lineName - 连线名称/守卫条件（可选），格式 "[guard]" 时被视为守卫
         数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
@@ -2447,7 +2558,7 @@ def CreateActivityControlFlowLineByGraphName(fullDiagramName: str, startGraphNam
     """
     _check_simple_graph_name(startGraphName, "startGraphName")
     _check_simple_graph_name(endGraphName, "endGraphName")
-    return CreateQuickPanelLine("control_flow", fullDiagramName, startGraphName, endGraphName)
+    return CreateQuickPanelLine("control_flow", fullDiagramName, startGraphName, endGraphName, lineName)
 
 @mw_connect_decorator(_MwConnect._process_path)
 def CreateActivityObjectFlowLineByGraphName(fullDiagramName: str, startGraphName: str, endGraphName: str) -> bool:
@@ -2479,17 +2590,19 @@ def CreateActivityObjectFlowLineByGraphName(fullDiagramName: str, startGraphName
     return CreateQuickPanelLine("object_flow", fullDiagramName, startGraphName, endGraphName)
 
 @mw_connect_decorator(_MwConnect._process_path)
-def CreateStateTransitionLine(fullDiagramName: str, startElementName: str, endElementName: str) -> bool:
+def CreateStateTransitionLine(fullDiagramName: str, startElementName: str, endElementName: str, lineName: str = "") -> bool:
     """
     在状态机图中创建transition连线
 
     语法
-        >>> CreateStateTransitionLine(fullDiagramName:str, startElementName:str, endElementName:str)
+        >>> CreateStateTransitionLine(fullDiagramName:str, startElementName:str, endElementName:str, lineName:str = "")
     说明
-        CreateStateTransitionLine(fullDiagramName, startElementName, endElementName)用于在状态机图中创建transition连线。
+        CreateStateTransitionLine(fullDiagramName, startElementName, endElementName, lineName)用于在状态机图中创建transition连线。
         默认按元素全名解析端点；若端点是按图形名称创建的节点，请改用CreateStateTransitionLineByGraphName。
+        lineName参数用于设置守卫条件（可选），例如 "x > 0"。
     示例
         >>> print(CreateStateTransitionLine("Package1.STM1", "Package1.stateA", "Package1.stateB"))
+        >>> print(CreateStateTransitionLine("Package1.STM1", "Package1.stateA", "Package1.stateB", "x > 10"))
     输入参数
         fullDiagramName - 目标状态机图全名
         数据类型：str
@@ -2497,31 +2610,37 @@ def CreateStateTransitionLine(fullDiagramName: str, startElementName: str, endEl
         数据类型：str
         endElementName - 终点元素全名
         数据类型：str
+        lineName - 守卫条件（可选）
+        数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
     另请参阅
         CreateStateTransitionLineByGraphName
     """
-    return CreateQuickPanelLine("transition", fullDiagramName, startElementName, endElementName)
+    return CreateQuickPanelLine("transition", fullDiagramName, startElementName, endElementName, lineName)
 
 @mw_connect_decorator(_MwConnect._process_path)
-def CreateStateTransitionLineByGraphName(fullDiagramName: str, startGraphName: str, endGraphName: str) -> bool:
+def CreateStateTransitionLineByGraphName(fullDiagramName: str, startGraphName: str, endGraphName: str, lineName: str = "") -> bool:
     """
     在状态机图中按图形名称创建 transition 连线
 
     语法
-        >>> CreateStateTransitionLineByGraphName(fullDiagramName:str, startGraphName:str, endGraphName:str)
+        >>> CreateStateTransitionLineByGraphName(fullDiagramName:str, startGraphName:str, endGraphName:str, lineName:str = "")
     说明
-        CreateStateTransitionLineByGraphName(fullDiagramName, startGraphName, endGraphName)用于在状态机图中按图形名称创建transition连线。
+        CreateStateTransitionLineByGraphName(fullDiagramName, startGraphName, endGraphName, lineName)用于在状态机图中按图形名称创建transition连线。
         startGraphName和endGraphName需传图中图块名称，必须为不包含`.`的简单名。
+        lineName参数用于设置守卫条件（可选），例如 "x > 0"。
     示例
         >>> print(CreateStateTransitionLineByGraphName("Package1.STM1", "state_initial", "state_choice"))
+        >>> print(CreateStateTransitionLineByGraphName("Package1.STM1", "state_initial", "state_choice", "x > 10"))
     输入参数
         fullDiagramName - 目标状态机图全名
         数据类型：str
         startGraphName - 起点图形名称，不含`.`
         数据类型：str
         endGraphName - 终点图形名称，不含`.`
+        数据类型：str
+        lineName - 守卫条件（可选）
         数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
@@ -2530,7 +2649,7 @@ def CreateStateTransitionLineByGraphName(fullDiagramName: str, startGraphName: s
     """
     _check_simple_graph_name(startGraphName, "startGraphName")
     _check_simple_graph_name(endGraphName, "endGraphName")
-    return CreateQuickPanelLine("transition", fullDiagramName, startGraphName, endGraphName)
+    return CreateQuickPanelLine("transition", fullDiagramName, startGraphName, endGraphName, lineName)
 
 @mw_connect_decorator(_MwConnect._process_path)
 def CreateConnectorLine(fullDiagramName: str, startElementName: str, endElementName: str) -> bool:
@@ -3140,10 +3259,11 @@ def SetStateEntry(fullName: str, behaviorFullName: str) -> bool:
         >>> SetStateEntry(fullName:str, behaviorFullName:str)
     说明
         SetStateEntry(fullName, behaviorFullName) 用于设置状态（包含普通状态、组合状态、正交状态）的入口动作。
+        fullName 应传目标状态的完整元素名，写法为“状态机全名 + '.' + 状态名”，不要传状态机图名、graphName 或推测名称。
         behaviorFullName 传空字符串可清空当前设置。
     示例
         示例1：设置入口动作
-        >>> print(SetStateEntry("包1.状态机1.状态1", "包1.活动1"))
+        >>> print(SetStateEntry("包1.状态机1.状态1", "包1.不透明行为1"))
         示例2：清空入口动作
         >>> print(SetStateEntry("包1.状态机1.状态1", ""))
     输入参数
@@ -3169,6 +3289,7 @@ def SetStateDoActivity(fullName: str, behaviorFullName: str) -> bool:
         >>> SetStateDoActivity(fullName:str, behaviorFullName:str)
     说明
         SetStateDoActivity(fullName, behaviorFullName) 用于设置状态（包含普通状态、组合状态、正交状态）的执行活动。
+        fullName 应传目标状态的完整元素名，写法为“状态机全名 + '.' + 状态名”，不要传状态机图名、graphName 或推测名称。
         behaviorFullName 传空字符串可清空当前设置。
     示例
         示例1：设置执行活动
@@ -3198,10 +3319,11 @@ def SetStateExit(fullName: str, behaviorFullName: str) -> bool:
         >>> SetStateExit(fullName:str, behaviorFullName:str)
     说明
         SetStateExit(fullName, behaviorFullName) 用于设置状态（包含普通状态、组合状态、正交状态）的出口动作。
+        fullName 应传目标状态的完整元素名，写法为“状态机全名 + '.' + 状态名”，不要传状态机图名、graphName 或推测名称。
         behaviorFullName 传空字符串可清空当前设置。
     示例
         示例1：设置出口动作
-        >>> print(SetStateExit("包1.状态机1.状态1", "包1.状态机定义2"))
+        >>> print(SetStateExit("包1.状态机1.状态1", "包1.不透明行为2"))
         示例2：清空出口动作
         >>> print(SetStateExit("包1.状态机1.状态1", ""))
     输入参数
@@ -3231,9 +3353,9 @@ def SetActivityScript(fullName: str, script: str, language: str = "") -> bool:
         仅当 fullName 指向活动类型元素时可设置。
     示例
         示例1：设置活动脚本
-        >>> print(SetActivityScript("Package1.Activity1", "print('hello')", "Python"))
+        >>> print(SetActivityScript("Package1.Activity1", "result = input_a + input_b", "Groovy"))
         示例2：仅更新脚本内容，不修改当前语言
-        >>> print(SetActivityScript("Package1.Activity1", "print('hello v2')"))
+        >>> print(SetActivityScript("Package1.Activity1", "result = input_a - input_b"))
     输入参数
         fullName - 目标活动元素的全名（包含路径）
         数据类型：str
@@ -3262,9 +3384,9 @@ def SetOpaqueBehaviorScript(fullName: str, script: str, language: str = "") -> b
         仅当 fullName 指向不透明行为元素时可设置。
     示例
         示例1：设置不透明行为脚本
-        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "return x + y;", "C"))
+        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "result = x + y", "Groovy"))
         示例2：仅更新脚本内容，不修改当前语言
-        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "return x + y + z;"))
+        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "result = x + y + z"))
     输入参数
         fullName - 目标不透明行为元素的全名（包含路径）
         数据类型：str

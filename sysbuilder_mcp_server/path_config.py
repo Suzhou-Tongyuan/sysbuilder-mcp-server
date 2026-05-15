@@ -10,6 +10,7 @@ DEPLOY_ROOT = PACKAGE_ROOT
 WORKSPACE_ROOT = Path(os.environ.get("MCP_WORKSPACE_DIR") or PROJECT_ROOT).resolve()
 RESOURCES_ROOT = Path(os.environ.get("MCP_RESOURCES_DIR") or (PROJECT_ROOT / "resources")).resolve()
 OUTPUT_ROOT = Path(os.environ.get("MCP_OUTPUT_DIR") or (WORKSPACE_ROOT / "output")).resolve()
+RESOURCES_MANIFEST_FILENAME = "resources_manifest.json"
 
 
 def get_workspace_root() -> Path:
@@ -18,6 +19,10 @@ def get_workspace_root() -> Path:
 
 def get_resources_root() -> Path:
     return RESOURCES_ROOT
+
+
+def get_resources_manifest_path() -> Path:
+    return get_resources_root() / RESOURCES_MANIFEST_FILENAME
 
 
 def get_output_root() -> Path:

@@ -21,17 +21,18 @@ If the task will use Sysbuilder software, Sysbuilder APIs, Sysbuilder MCP tools,
 ## Mandatory Workflow
 
 1. Read [references/SysML建模规范.md](references/SysML建模规范.md) for the workspace modeling rules.
-2. Clarify the current modeling goal:
+2. If the task will use Sysbuilder automation scripts, also read [../../quickref/sysbuilder_python_api.md](../../quickref/sysbuilder_python_api.md).
+3. Clarify the current modeling goal:
    - requirement analysis
    - behavior analysis
    - architecture design
    - interface/parameter/verification traceability
-3. Build the minimum sufficient model for the task. Do not add diagrams that do not answer an engineering question.
-4. Keep naming consistent, unique, and searchable. Prefer Chinese names in this workspace unless the source standard explicitly requires otherwise.
-5. Follow the standard package layering, element usage, and diagram-selection rules.
-6. Build the core traceability chain where applicable:
+4. Build the minimum sufficient model for the task. Do not add diagrams that do not answer an engineering question.
+5. Keep naming consistent, unique, and searchable. Prefer Chinese names in this workspace unless the source standard explicitly requires otherwise.
+6. Follow the standard package layering, element usage, diagram-selection rules, and API compatibility rules.
+7. Build the core traceability chain where applicable:
    - source -> requirement -> behavior -> structure -> verification
-7. Before finishing, check naming consistency, relation semantics, interface consistency, and modeling completeness against the requested scope.
+8. Before finishing, check naming consistency, relation semantics, interface consistency, and modeling completeness against the requested scope.
 
 ## What To Output
 
@@ -45,3 +46,4 @@ When reporting results for a modeling task, provide:
 ## References
 
 - [references/SysML建模规范.md](references/SysML建模规范.md): Full workspace SysML modeling standard.
+- [../../quickref/sysbuilder_python_api.md](../../quickref/sysbuilder_python_api.md): API-level quick reference for reliable Sysbuilder automation.

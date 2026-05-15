@@ -1,4 +1,4 @@
-# ﻿Sysbuilder MCP Server
+﻿# Sysbuilder MCP Server
 
 `Sysbuilder MCP Server` 用于把 Sysbuilder 对外开放的 Python API 封装成 MCP tools，供 Codex、Claude Code 以及其他支持 MCP 的客户端调用。
 
@@ -8,6 +8,9 @@
 - `resources/`：建模规则、参考资料和提示资源
 - `example/`：示例文件
 - `install_mcp.ps1`：安装脚本，自动写入 MCP 客户端配置
+
+其中，MCP 服务启动时会自动读取 `resources/` 下的规则摘要与技能入口，并把它们注入 MCP instructions。
+如果资源目录不在默认位置，请通过 `--resources-dir` 或环境变量 `MCP_RESOURCES_DIR` 显式指定。
 
 ## 系统要求
 
@@ -46,7 +49,7 @@ mcp_server_config.json
 
 ### 工具列表
 
-当前服务提供 9 个核心工具，聚焦 Sysbuilder 的模型构建、需求导入、模型生成及文档导出，支撑复杂系统设计建模。
+当前服务提供 10 个核心工具，聚焦 Sysbuilder 的模型构建、需求导入、API 查询、模型生成及文档导出，支撑复杂系统设计建模。
 
 从用途上看，这些工具可以分为以下 4 类。
 
@@ -89,7 +92,7 @@ mcp_server_config.json
   </tbody>
 </table>
 
-#### 2. 脚本化建模与自动化
+#### 2. API 查询与脚本化建模
 
 <table>
   <colgroup>
@@ -106,9 +109,14 @@ mcp_server_config.json
   </thead>
   <tbody>
     <tr>
+      <td><code>lookup_sysbuilder_api</code></td>
+      <td>API 查询工具</td>
+      <td>用于查询 MCP 内置的 <code>sysbuilder_api.py</code> 接口清单，支持按 API 名称或关键词查找签名，适合在自然语言转脚本前先确认可用接口，减少“先猜 API 再返工”的情况。</td>
+    </tr>
+    <tr>
       <td><code>run_script</code></td>
       <td>建模脚本执行工具</td>
-      <td>用于执行完整的 Sysbuilder Python 建模脚本，是自动化建模、需求建模、功能建模、架构建模、关系创建、视图生成等任务的核心入口。该工具只负责执行现成脚本；大模型根据自然语言，应先生成完整建模脚本，再把脚本文本或脚本路径传给它执行建模操作。</td>
+      <td>用于执行完整的 Sysbuilder Python 建模脚本，是自动化建模、需求建模、功能建模、架构建模、关系创建、视图生成等任务的核心入口。推荐先调用 <code>lookup_sysbuilder_api</code> 确认本次所需 API，再一次性生成完整建模脚本并传给本工具执行。</td>
     </tr>
   </tbody>
 </table>
@@ -173,7 +181,7 @@ mcp_server_config.json
 
 ## 说明
 
-- 对建模任务，AI 客户端应先生成完整的 Python 建模脚本，再调用 `run_script`
+- 对建模任务，AI 客户端应优先按“`lookup_sysbuilder_api` -> 生成完整 Python 建模脚本 -> `run_script`”的顺序执行
 - 如果使用开发版或自定义构建目录，可以直接在安装脚本里输入 `Sysbuilder.exe` 的完整路径
 
 ## 许可协议

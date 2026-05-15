@@ -6,6 +6,8 @@
 
 - `rules/`
   - 存放执行约束、建模规范、流程规则等硬性规则文件
+- `quickref/`
+  - 存放按工具或 API 维度组织的速查文档
 - `skills/`
   - 存放任务技能目录
   - 每个技能目录通常包含 `SKILL.md`，也可能包含 `references/`、`agents/` 等补充资料
@@ -19,6 +21,7 @@
 - `./resources/rules/Sysbuilder建模要求.md`：使用 Sysbuilder 建模时应遵守的强制要求
 - `./resources/skills/sysml-modeling-standard/SKILL.md`：SysML 建模技能入口与执行流程说明
 - `./resources/skills/sysml-modeling-standard/references/SysML建模规范.md`：SysML 建模参考规范
+- `./resources/quickref/sysbuilder_python_api.md`：Sysbuilder Python 接口速查与自动建模实践
 - `./resources/skills/sysml-modeling-standard/agents/openai.yaml`：该技能在 AI 客户端中的展示配置
 
 ## 提示 AI 先读资源
@@ -34,4 +37,5 @@
 若技能文件引用了参考资料，再继续阅读：
 
 - ./resources/skills/sysml-modeling-standard/references/SysML建模规范.md
+- ./resources/quickref/sysbuilder_python_api.md
 ```

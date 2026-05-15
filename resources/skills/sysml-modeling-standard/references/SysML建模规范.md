@@ -180,13 +180,56 @@
 用于说明任务流程、功能分解和行为执行过程。
 
 要求：
-- 活动名采用“动词 + 宾语”
+- 活动名采用”动词 + 宾语”
 - 泳道优先按责任主体划分
-- 顶层回答“总体怎么做”
-- 中层回答“关键能力如何协同”
-- 底层回答“动作如何执行”
+- 顶层回答”总体怎么做”
+- 中层回答”关键能力如何协同”
+- 底层回答”动作如何执行”
 - 应覆盖关键正常流程和异常流程
 - 对象流应与接口模型保持一致
+
+#### 3.8.1 活动图建模流程
+
+推荐建模顺序：
+1. 创建顶层活动：`NewActivity('BehaviorModel.ACT_MainProcess')`
+2. 创建活动图：`NewACTDiagram('BehaviorModel.ACT_MainProcess.Diagram')`
+3. 创建初始节点：`CreateActivityInitialNode('ACT.Diagram', 'Initial', [100, 200])`
+4. 插入活动节点：`InsertElementToDiagram('ACT.StageA', 'ACT.Diagram', [200, 200])`
+5. 创建控制节点（决策/分叉等）：`CreateActivityDecisionNode('ACT.Diagram', 'Decision', [400, 200])`
+6. 连接控制流：`CreateActivityControlFlowLineByGraphName('ACT.Diagram', 'Initial', 'StageA')`
+7. 创建合并/汇合节点：`CreateActivityMergeNode('ACT.Diagram', 'Merge', [600, 200])`
+8. 创建结束节点：`CreateActivityFinalNode('ACT.Diagram', 'Final', [800, 200])`
+9. 自动布局：`AutoLayoutDiagram('ACT.Diagram')`
+
+#### 3.8.2 控制节点使用规范
+
+| 节点类型 | 符号 | 使用场景 |
+|----------|------|----------|
+| **决策节点** | ◇ | 条件分支、多路选择（if-else） |
+| **合并节点** | ◇ | 多个分支合并为一个流 |
+| **分叉节点** | — | 并发开始：多个流同时执行 |
+| **汇合节点** | — | 并发结束：等待所有流完成 |
+| **事件节点** | ◻ | 等待外部事件触发 |
+| **信号节点** | ⟠ | 发送或接收信号 |
+| **时间事件节点** | ⏱ | 定时触发、延时执行 |
+
+#### 3.8.3 决策与合并配对原则
+
+- 决策节点后必须有对应的合并节点
+- 每个决策分支应明确条件标签
+- 合并节点前的所有分支都应到达
+
+#### 3.8.4 分叉与汇合配对原则
+
+- 分叉节点后必须有对应的汇合节点
+- 分叉产生的所有并发流都必须汇合
+- 汇合节点等待所有并发流完成后才继续
+
+#### 3.8.5 控制流与对象流
+
+- **控制流**：表达执行顺序，连接活动节点
+- **对象流**：表达数据传递，连接对象节点和活动节点
+- 对象流应与接口定义保持一致
 
 ### 3.9 时序图
 
@@ -205,6 +248,45 @@
 - 状态名必须是稳定状态名词
 - 转换应尽量明确事件、条件和动作
 - 状态机图不替代流程图
+
+#### 3.10.1 状态命名规范
+
+- 状态名必须是**稳定状态名词**，不是动作：
+  - ✅ 正确：`空闲`、`运行中`、`已完成`、`故障`、`待机`
+  - ❌ 错误：`启动`、`处理`、`停止`、`执行`
+
+#### 3.10.2 状态机建模流程
+
+推荐建模顺序：
+1. 创建状态机：`NewStateMachine('BehaviorModel.STM_Task')`
+2. 创建状态机图：`NewSTMDiagram('BehaviorModel.STM_Task.Diagram')`
+3. 创建初始节点：`CreateStateInitialNode('STM.Diagram', 'Initial', [100, 200])`
+4. 创建状态节点：`CreateState('STM.Diagram', 'Idle', [200, 200])`
+5. 创建迁移连线：`CreateStateTransitionLineByGraphName('STM.Diagram', 'Initial', 'Idle')`
+6. 设置状态行为（可选）：`SetStateEntry('STM.Idle', 'ACT_Enter')`
+7. 创建结束节点：`CreateStateFinalNode('STM.Diagram', 'Final', [800, 200])`
+
+#### 3.10.3 状态行为
+
+状态可设置三种行为：
+- **Entry**：进入状态时执行的动作
+- **Do**：在状态中持续执行的活动
+- **Exit**：离开状态时执行的动作
+
+#### 3.10.4 组合状态与正交状态
+
+- **组合状态**：包含子状态的复杂状态
+  - `CreateCompositeState(...)`：创建组合状态，自动带1个区域
+  - `SetStateSubMachine(...)`：为已有状态设置子状态机定义
+- **正交状态**：包含多个并发区域的状态
+  - `CreateOrthogonalState(...)`：创建正交状态，自动带2个区域
+  - `CreateStateRegion(...)`：为已有状态添加额外区域
+
+#### 3.10.5 迁移规范
+
+- 迁移应明确：事件触发、守卫条件、执行动作
+- 迁移方向：从源状态指向目标状态
+- 自迁移：状态指向自身的迁移
 
 ### 3.11 矩阵与表格
 

@@ -16,7 +16,11 @@ from sysbuilder_mcp_server.path_config import (
     get_sysbuilder_process_path,
     get_workspace_root,
 )
-from sysbuilder_mcp_server.core import ConnectSysbuilder, FindSysbuilder, StartSysbuilder
+from sysbuilder_mcp_server.core import StartSysbuilder
+from sysbuilder_mcp_server.core.resources_manifest import (
+    load_runtime_resource_bundle,
+    load_runtime_resource_texts,
+)
 from sysbuilder_mcp_server.core.sysbuilder_connect import MwConnect
 
 
@@ -96,47 +100,67 @@ def ensure_sysbuilder_session(process_path: str = "", ip: str = "", port: Option
             "stderr": start_stderr,
         }
 
-    with capture_python_output() as (buf_out, buf_err):
-        ports = FindSysbuilder()
-    find_stdout = _truncate(buf_out.getvalue())
-    find_stderr = _truncate(buf_err.getvalue())
-    available_ports = list(getattr(ports, "ports", ports))
-    target_port = port or (available_ports[0] if available_ports else None)
-    if target_port is not None:
-        with capture_python_output() as (buf_out, buf_err):
-            connect_ok = ConnectSysbuilder(ip=ip_arg, port=target_port)
-        connect_stdout = _truncate(buf_out.getvalue())
-        connect_stderr = _truncate(buf_err.getvalue())
-        if connect_ok:
-            return {
-                "ok": True,
-                "action": "connected",
-                "process_path": proc_arg,
-                "port": target_port,
-                "available_ports": available_ports,
-                "stdout": "\n".join(filter(None, [start_stdout, find_stdout, connect_stdout])),
-                "stderr": "\n".join(filter(None, [start_stderr, find_stderr, connect_stderr])),
-            }
-
     return {
         "ok": False,
         "action": "failed",
         "process_path": proc_arg,
-        "port": target_port,
-        "available_ports": available_ports,
+        "port": port,
         "workspace_root": str(get_workspace_root()),
         "resources_root": str(get_resources_root()),
         "output_root": str(get_output_root()),
-        "stdout": "\n".join(filter(None, [start_stdout, find_stdout])),
-        "stderr": "\n".join(filter(None, [start_stderr, find_stderr])),
+        "stdout": start_stdout,
+        "stderr": start_stderr,
+        "hint": "Default MCP behavior is to start a new Sysbuilder session. If you explicitly want to connect to an existing instance, use the dedicated session connection tools instead of run_script auto-session.",
     }
 
 
 def inject_script_namespace(namespace: Dict[str, Any]) -> None:
+    resource_bundle = load_runtime_resource_bundle()
+
+    def get_modeling_rule_text(name: str = "") -> str:
+        key = (name or "sysbuilder_rules").strip()
+        entry = resource_bundle.get(key)
+        return str(entry.get("text", "")) if isinstance(entry, dict) else ""
+
+    def get_modeling_rule_bundle() -> Dict[str, Dict[str, Any]]:
+        return resource_bundle
+
+    def print_modeling_rule_summary() -> str:
+        ordered_keys = (
+            "sysbuilder_rules",
+            "sysbuilder_python_api",
+            "sysml_skill",
+            "sysml_reference",
+            "default_rules",
+        )
+        sections = []
+        for key in ordered_keys:
+            entry = resource_bundle.get(key)
+            if not isinstance(entry, dict) or not entry.get("ok"):
+                continue
+            summary = str(entry.get("summary", "")).strip()
+            if not summary:
+                continue
+            sections.append(f"[{key}] {entry.get('path')}\n{summary}")
+        text = "\n\n".join(sections)
+        if text:
+            print(text)
+        return text
+
     namespace["__builtins__"] = builtins
     namespace["WORKSPACE_ROOT"] = str(get_workspace_root())
     namespace["RESOURCES_ROOT"] = str(get_resources_root())
     namespace["OUTPUT_ROOT"] = str(get_output_root())
+    namespace["RESOURCE_TEXTS"] = load_runtime_resource_texts()
+    namespace["RESOURCE_BUNDLE"] = resource_bundle
+    namespace["MODELING_RULES"] = resource_bundle
+    namespace["SYSBUILDER_MODELING_RULES_TEXT"] = get_modeling_rule_text("sysbuilder_rules")
+    namespace["SYSBUILDER_PYTHON_API_TEXT"] = get_modeling_rule_text("sysbuilder_python_api")
+    namespace["SYSML_MODELING_SKILL_TEXT"] = get_modeling_rule_text("sysml_skill")
+    namespace["SYSML_MODELING_REFERENCE_TEXT"] = get_modeling_rule_text("sysml_reference")
+    namespace["GetModelingRuleText"] = get_modeling_rule_text
+    namespace["GetModelingRuleBundle"] = get_modeling_rule_bundle
+    namespace["PrintModelingRuleSummary"] = print_modeling_rule_summary
 
     import sysbuilder_mcp_server.core as sysbuilder_core
 
@@ -189,4 +213,30 @@ def execute_python_source(source: str, filename: str, working_directory: Path) -
         "exception": "",
         "traceback": "",
         "run_script_result": namespace.get("RUN_SCRIPT_RESULT"),
+    }
+
+
+def get_runtime_modeling_rules_metadata() -> Dict[str, Any]:
+    bundle = load_runtime_resource_bundle()
+    return {
+        "auto_loaded": True,
+        "available_globals": [
+            "MODELING_RULES",
+            "RESOURCE_BUNDLE",
+            "SYSBUILDER_MODELING_RULES_TEXT",
+            "SYSBUILDER_PYTHON_API_TEXT",
+            "SYSML_MODELING_SKILL_TEXT",
+            "SYSML_MODELING_REFERENCE_TEXT",
+            "GetModelingRuleText",
+            "GetModelingRuleBundle",
+            "PrintModelingRuleSummary",
+        ],
+        "resources": {
+            key: {
+                "path": value.get("path", ""),
+                "ok": bool(value.get("ok")),
+                "summary": value.get("summary", ""),
+            }
+            for key, value in bundle.items()
+        },
     }

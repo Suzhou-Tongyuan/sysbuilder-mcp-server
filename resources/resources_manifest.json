@@ -1,0 +1,39 @@
+{
+  "resource_categories": [
+    {
+      "id": "workspace_rules",
+      "name": "Workspace Rules",
+      "description": "工作区级默认执行约束与编码要求。",
+      "path": "rules/default.rules",
+      "keywords": ["utf-8", "workspace", "default rules", "execution constraints"]
+    },
+    {
+      "id": "sysbuilder_rules",
+      "name": "Sysbuilder Modeling Rules",
+      "description": "Sysbuilder 建模强制要求与执行约束。",
+      "path": "rules/Sysbuilder建模要求.md",
+      "keywords": ["sysbuilder", "sysml", "建模要求", "规则", "traceability"]
+    },
+    {
+      "id": "quickref_sysbuilder_python_api",
+      "name": "Sysbuilder Python API Quick Reference",
+      "description": "Sysbuilder Python 接口速查、图种兼容性与自动建模实践。",
+      "path": "quickref/sysbuilder_python_api.md",
+      "keywords": ["sysbuilder", "python api", "quickref", "automation", "bdd", "act", "satisfy", "allocate"]
+    },
+    {
+      "id": "sysml_skill",
+      "name": "SysML Modeling Skill",
+      "description": "SysML 建模技能入口与标准执行流程。",
+      "path": "skills/sysml-modeling-standard/SKILL.md",
+      "keywords": ["skill", "sysml", "workflow", "modeling standard"]
+    },
+    {
+      "id": "sysml_reference",
+      "name": "SysML Reference",
+      "description": "SysML 建模参考规范与图种选择规则。",
+      "path": "skills/sysml-modeling-standard/references/SysML建模规范.md",
+      "keywords": ["sysml", "reference", "diagram selection", "naming", "allocation"]
+    }
+  ]
+}

@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from sysbuilder_mcp_server.mcp_instance import mcp
-from sysbuilder_mcp_server.path_config import get_sysbuilder_process_path
 from sysbuilder_mcp_server.core import ConnectSysbuilder, Exit, FindSysbuilder, StartSysbuilder
 from sysbuilder_mcp_server.core.sysbuilder_connect import MwConnect
+from sysbuilder_mcp_server.mcp_instance import mcp
+from sysbuilder_mcp_server.path_config import get_sysbuilder_process_path
 from sysbuilder_mcp_server.tools.common import _json, capture_python_output
 
 
@@ -28,9 +28,14 @@ def start(
     args: list[str] | None = None,
 ) -> str:
     """
-    启动 Sysbuilder 并建立连接。
+    Launch Sysbuilder and establish the current session directly.
 
-    `process_path` 为空时，会优先尝试使用 `SYSBUILDER_INSTALL_DIR/Bin/Sysbuilder.exe`。
+    If `process_path` is empty, the tool will first try
+    `SYSBUILDER_INSTALL_DIR/Bin/Sysbuilder.exe`.
+
+    In the default workflow, a successful `start(...)` is sufficient:
+    continue modeling directly and do not call `find()` or `connect()` again
+    unless the user explicitly asks to connect to an existing instance.
     """
     proc_arg = (process_path or "").strip()
     if not proc_arg:
@@ -55,6 +60,11 @@ def start(
             "port": port or None,
             "args": args or [],
             "result": result,
+            "session_guidance": (
+                "start() already launches Sysbuilder and establishes the current session. "
+                "After a successful start, continue modeling directly instead of calling find()/connect() again, "
+                "unless the user explicitly asks to connect to an existing instance."
+            ),
             "stdout": buf_out.getvalue(),
             "stderr": buf_err.getvalue(),
         }
@@ -64,7 +74,10 @@ def start(
 @mcp.tool()
 def find() -> str:
     """
-    查找当前可连接的 Sysbuilder 实例及端口。
+    Find currently available Sysbuilder instances and ports.
+
+    Use this only when the user explicitly asks to inspect existing instances
+    or connect to one that is already running.
     """
     with capture_python_output() as (buf_out, buf_err):
         result = FindSysbuilder()
@@ -83,9 +96,11 @@ def find() -> str:
 @mcp.tool()
 def connect(ip: str = "", port: int = 0) -> str:
     """
-    连接到已启动的 Sysbuilder。
+    Connect to an already running Sysbuilder instance.
 
-    `port` 为空时，会先调用 `FindSysbuilder()` 自动选择第一个可用端口。
+    If `port` is empty, the helper will internally try `FindSysbuilder()` to
+    pick the first available port. Prefer this tool only when the user clearly
+    wants to attach to an existing instance instead of starting a new one.
     """
     with capture_python_output() as (buf_out, buf_err):
         result = ConnectSysbuilder(
@@ -109,9 +124,10 @@ def connect(ip: str = "", port: int = 0) -> str:
 @mcp.tool()
 def exit() -> str:
     """
-    退出当前已连接的 Sysbuilder 软件。
+    Exit the currently connected Sysbuilder session.
 
-    若当前没有活动连接，则直接返回失败，不会尝试隐式启动或连接。
+    If there is no active connection, this returns failure directly and does
+    not attempt any implicit launch or reconnect.
     """
     conn = MwConnect()
     connected_before = conn.get_is_connected()

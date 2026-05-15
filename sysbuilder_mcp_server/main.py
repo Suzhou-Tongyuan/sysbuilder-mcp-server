@@ -34,12 +34,15 @@ def _apply_env_from_argv() -> None:
 _apply_env_from_argv()
 
 from sysbuilder_mcp_server.mcp_instance import _FASTMCP_AVAILABLE, mcp  # noqa: E402
+import sysbuilder_mcp_server.tools.api_lookup  # noqa: F401,E402
 import sysbuilder_mcp_server.tools.geometry_docs  # noqa: F401,E402
 import sysbuilder_mcp_server.tools.model_import  # noqa: F401,E402
 import sysbuilder_mcp_server.tools.modelica  # noqa: F401,E402
 import sysbuilder_mcp_server.tools.report  # noqa: F401,E402
+import sysbuilder_mcp_server.tools.rule_lookup  # noqa: F401,E402
 import sysbuilder_mcp_server.tools.run_script  # noqa: F401,E402
 import sysbuilder_mcp_server.tools.session_tools  # noqa: F401,E402
+import sysbuilder_mcp_server.tools.traceability  # noqa: F401,E402
 from sysbuilder_mcp_server.version import format_version_banner  # noqa: E402
 
 
