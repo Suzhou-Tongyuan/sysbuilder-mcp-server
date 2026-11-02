@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from sysbuilder_mcp_server.core import (
+    AdjustDiagramFrameToOptimalSize,
     AutoLayoutDiagram,
     CreateAllocateLine,
     CreateRequirementSatisfyLine,
@@ -62,6 +63,7 @@ def create_satisfy_trace(
     2. `InsertElementToDiagram(requirement_full_name, diagram_full_name, ...)`
     3. `CreateRequirementSatisfyLine(diagram_full_name, satisfier_full_name, requirement_full_name)`
     4. 可选 `AutoLayoutDiagram(diagram_full_name)`
+    5. 启用自动布局时，随后执行 `AdjustDiagramFrameToOptimalSize(diagram_full_name)`
     """
     session = ensure_sysbuilder_session(process_path=process_path, ip=ip, port=(port or None))
     if not session.get("ok"):
@@ -85,6 +87,8 @@ def create_satisfy_trace(
     }
     if auto_layout:
         operations["auto_layout"] = _call_api(AutoLayoutDiagram, diagram_full_name)
+        # 画布边框必须在自动布局完成后再按可见图元范围收紧。
+        operations["adjust_diagram_frame"] = _call_api(AdjustDiagramFrameToOptimalSize, diagram_full_name)
 
     ok = bool(operations["create_satisfy"]["ok"])
     warnings = []
@@ -132,6 +136,7 @@ def create_allocate_trace(
     2. `InsertElementToDiagram(target_full_name, diagram_full_name, ...)`
     3. `CreateAllocateLine(diagram_full_name, source_full_name, target_full_name)`
     4. 可选 `AutoLayoutDiagram(diagram_full_name)`
+    5. 启用自动布局时，随后执行 `AdjustDiagramFrameToOptimalSize(diagram_full_name)`
     """
     session = ensure_sysbuilder_session(process_path=process_path, ip=ip, port=(port or None))
     if not session.get("ok"):
@@ -155,6 +160,8 @@ def create_allocate_trace(
     }
     if auto_layout:
         operations["auto_layout"] = _call_api(AutoLayoutDiagram, diagram_full_name)
+        # 画布边框必须在自动布局完成后再按可见图元范围收紧。
+        operations["adjust_diagram_frame"] = _call_api(AdjustDiagramFrameToOptimalSize, diagram_full_name)
 
     ok = bool(operations["create_allocate"]["ok"])
     warnings = []

@@ -1,39 +1,107 @@
 {
-  "resource_categories": [
-    {
-      "id": "workspace_rules",
-      "name": "Workspace Rules",
-      "description": "工作区级默认执行约束与编码要求。",
-      "path": "rules/default.rules",
-      "keywords": ["utf-8", "workspace", "default rules", "execution constraints"]
-    },
-    {
-      "id": "sysbuilder_rules",
-      "name": "Sysbuilder Modeling Rules",
-      "description": "Sysbuilder 建模强制要求与执行约束。",
-      "path": "rules/Sysbuilder建模要求.md",
-      "keywords": ["sysbuilder", "sysml", "建模要求", "规则", "traceability"]
-    },
-    {
-      "id": "quickref_sysbuilder_python_api",
-      "name": "Sysbuilder Python API Quick Reference",
-      "description": "Sysbuilder Python 接口速查、图种兼容性与自动建模实践。",
-      "path": "quickref/sysbuilder_python_api.md",
-      "keywords": ["sysbuilder", "python api", "quickref", "automation", "bdd", "act", "satisfy", "allocate"]
-    },
-    {
-      "id": "sysml_skill",
-      "name": "SysML Modeling Skill",
-      "description": "SysML 建模技能入口与标准执行流程。",
-      "path": "skills/sysml-modeling-standard/SKILL.md",
-      "keywords": ["skill", "sysml", "workflow", "modeling standard"]
-    },
-    {
-      "id": "sysml_reference",
-      "name": "SysML Reference",
-      "description": "SysML 建模参考规范与图种选择规则。",
-      "path": "skills/sysml-modeling-standard/references/SysML建模规范.md",
-      "keywords": ["sysml", "reference", "diagram selection", "naming", "allocation"]
-    }
-  ]
+    "resource_categories":  [
+                                {
+                                    "id":  "workspace_rules",
+                                    "name":  "Workspace Rules",
+                                    "description":  "工作区级默认执行约束与编码要求。",
+                                    "path":  "rules/default.rules",
+                                    "keywords":  [
+                                                     "utf-8",
+                                                     "workspace",
+                                                     "default rules",
+                                                     "execution constraints"
+                                                 ]
+                                },
+                                {
+                                    "id":  "sysbuilder_rules",
+                                    "name":  "Sysbuilder Modeling Rules",
+                                    "description":  "Sysbuilder 建模强制要求与执行约束。",
+                                    "path":  "rules/Sysbuilder建模要求.md",
+                                    "keywords":  [
+                                                     "sysbuilder",
+                                                     "sysml",
+                                                     "建模要求",
+                                                     "规则",
+                                                     "traceability",
+                                                     "关系映射",
+                                                     "参数图计算"
+                                                 ]
+                                },
+                                {
+                                    "id":  "quickref_sysbuilder_python_api",
+                                    "name":  "Sysbuilder Python API Quick Reference",
+                                    "description":  "Sysbuilder Python 接口速查、图种兼容性与自动建模实践。",
+                                    "path":  "quickref/sysbuilder_python_api.md",
+                                    "keywords":  [
+                                                     "sysbuilder",
+                                                     "python api",
+                                                     "quickref",
+                                                     "automation",
+                                                     "bdd",
+                                                     "act",
+                                                     "satisfy",
+                                                     "allocate",
+                                                     "architecture tradeoff",
+                                                     "架构权衡",
+                                                     "CreateRelationMapping",
+                                                     "CalculateParametricDiagram",
+                                                     "需求指标验证"
+                                                 ]
+                                },
+                                {
+                                    "id":  "sysbuilder_user_manual",
+                                    "name":  "MWORKS.Sysbuilder User Manual",
+                                    "description":  "Sysbuilder 用户手册的逐页文本索引，用于查询界面操作、菜单、快捷键和功能说明。",
+                                    "path":  "manuals/Sysbuilder_User_Manual.pages.json",
+                                    "keywords":  [
+                                                     "用户手册",
+                                                     "使用说明",
+                                                     "界面操作",
+                                                     "菜单",
+                                                     "快捷键",
+                                                     "how-to"
+                                                 ]
+                                },
+                                {
+                                    "id":  "architecture_tradeoff_example",
+                                    "name":  "Architecture Tradeoff Example",
+                                    "description":  "汽车案例架构权衡示例工程与分析脚本，展示先导出对象代码再运行权衡脚本生成分析图的用法。",
+                                    "path":  "../example/architecture_tradeoff/汽车案例_SysML",
+                                    "keywords":  [
+                                                     "sysbuilder",
+                                                     "architecture tradeoff",
+                                                     "架构权衡",
+                                                     "ExportArchitectureTradeoffObjectCode",
+                                                     "RunArchitectureTradeoff",
+                                                     "radar chart",
+                                                     "bar chart",
+                                                     "汽车案例"
+                                                 ]
+                                },
+                                {
+                                    "id":  "sysml_skill",
+                                    "name":  "SysML Modeling Skill",
+                                    "description":  "SysML 建模技能入口与标准执行流程。",
+                                    "path":  "skills/sysml-modeling-standard/SKILL.md",
+                                    "keywords":  [
+                                                     "skill",
+                                                     "sysml",
+                                                     "workflow",
+                                                     "modeling standard"
+                                                 ]
+                                },
+                                {
+                                    "id":  "sysml_reference",
+                                    "name":  "SysML Reference",
+                                    "description":  "SysML 建模参考规范与图种选择规则。",
+                                    "path":  "skills/sysml-modeling-standard/references/SysML建模规范.md",
+                                    "keywords":  [
+                                                     "sysml",
+                                                     "reference",
+                                                     "diagram selection",
+                                                     "naming",
+                                                     "allocation"
+                                                 ]
+                                }
+                            ]
 }

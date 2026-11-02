@@ -1,21 +1,6 @@
 from .sysbuilder_connect import MwConnect
 import sys
 
-_MWORKS_PRELOADED = False
-
-
-def _ensure_mworks_sysbuilder_loaded() -> bool:
-    global _MWORKS_PRELOADED
-    if _MWORKS_PRELOADED:
-        return True
-    try:
-        import mworks.sysbuilder.sysbuilder_api as _sysbuilder_api  # noqa: F401
-        _MWORKS_PRELOADED = True
-        return True
-    except Exception as exc:
-        print(f"加载 mworks.sysbuilder 失败: {exc}")
-        return False
-
 def StartSysbuilder(processPath: str = None, ip: str = None, args: list = None, port = None) -> bool:
     """
     启动Sysbuilder，并连接
@@ -23,8 +8,6 @@ def StartSysbuilder(processPath: str = None, ip: str = None, args: list = None, 
     Returns:
         bool: 连接成功返回 True，连接失败返回 False
     """
-    if not _ensure_mworks_sysbuilder_loaded():
-        return False
     return MwConnect().__StartSysbuilder__(ip = ip, port = port, processPath = processPath, argsParam = args)
     
 def FindSysbuilder() -> list:

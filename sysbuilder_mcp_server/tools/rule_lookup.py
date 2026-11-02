@@ -46,7 +46,10 @@ def _search_text(text: str, query: str, max_hits: int) -> list[dict[str, Any]]:
     return hits[:max_hits]
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+    meta={"sysbuilder": {"risk": "read"}},
+)
 def lookup_sysbuilder_rules(
     query: str,
     sources: list[str] | None = None,

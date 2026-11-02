@@ -545,7 +545,12 @@ class MwConnect:
         self.sendJsonData = self.messageHead + str(len(send_json_data)) + "\r\n\r\n" + send_json_data
         self.sendJsonData = self.sendJsonData.encode("utf-8")
         # print(f"Send data: {send_json_data}")
-        result = self.__websocket_communication__()
+        try:
+            result = self.__websocket_communication__()
+        finally:
+            # 登录请求完成后立即移除连接对象中缓存的原始密码报文。
+            if func_name == "LoginTeam":
+                self.sendJsonData = b""
         # 连接失败
         if not get_response:
             self.toReceive = False

@@ -373,7 +373,7 @@ $repoRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $entryScript = Join-Path $repoRoot "main.py"
 $resourcesDir = Join-Path $repoRoot "resources"
 $workspaceDir = $repoRoot
-$outputDir = Join-Path $repoRoot "output"
+$outputDir = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)) "Sysbuilder\SysMLAIOutput"
 
 if (-not (Test-Path -LiteralPath $entryScript -PathType Leaf)) {
     throw "未找到入口脚本: $entryScript"
@@ -466,6 +466,7 @@ Write-Status "安装完成。"
 Write-Status "Sysbuilder 安装目录: $($resolved.InstallDir)"
 Write-Status "Sysbuilder 可执行文件: $($resolved.ProcessPath)"
 Write-Status "Python: $($resolved.PythonPath)"
+Write-Status "中间数据目录: $outputDir"
 Write-Status "Codex 配置: $codexConfigPath"
 Write-Status "Claude 配置: $claudeConfigPath"
 Write-Status "OpenCode 配置: $openCodeConfigPath"

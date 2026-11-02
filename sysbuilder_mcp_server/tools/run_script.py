@@ -11,7 +11,7 @@ from pathlib import Path
 import sysbuilder_mcp_server.core as sysbuilder_core
 from sysbuilder_mcp_server.core.api_catalog import get_api_names
 from sysbuilder_mcp_server.mcp_instance import mcp
-from sysbuilder_mcp_server.path_config import get_workspace_root
+from sysbuilder_mcp_server.path_config import get_output_root, get_workspace_root
 from sysbuilder_mcp_server.tools.common import (
     _json,
     ensure_sysbuilder_session,
@@ -33,8 +33,11 @@ _API_NAME_PREFIXES = (
     "Import",
     "Generate",
     "Gen",
+    "Run",
+    "Calculate",
     "Delete",
     "AutoLayout",
+    "Adjust",
     "Insert",
     "Start",
     "Find",
@@ -158,7 +161,7 @@ def _preflight_sysbuilder_api_usage(source: str) -> dict:
         "known_unsupported_api_calls": known_unsupported_api_calls,
         "available_api_count": len(available_api_names),
         "allowed_explicit_import": "from sysbuilder_mcp_server.core import *",
-        "api_usage_hint": "Use direct calls such as NewProject(...), NewBlock(...), CreateRequirementSatisfyLine(...). Do not invent API names. For activity data, use explicit object flows; if ports are needed, create them under the activity element itself and connect those ports explicitly. Do not try to create ports directly on the activity diagram.",
+        "api_usage_hint": "Use direct calls such as NewProject(...), CreateRelationMapping(...), and CalculateParametricDiagram(...). Do not invent API names. For relation mapping, create and type both endpoints first, map source to target, then calculate the parametric diagram and inspect parameter_calculation.json. For activity data, use explicit object flows and keep ports under the activity element.",
         "next_recommended_actions": [
             "Call lookup_sysbuilder_api first and lock the needed API set before rewriting the full script in one pass.",
             "Replace unsupported APIs immediately with exposed patterns from quickref; do not keep retrying similar names.",
@@ -199,6 +202,76 @@ def _analyze_traceability_usage(source: str) -> dict:
         "next_recommended_actions": next_recommended_actions,
         "high_level_tools": ["create_satisfy_trace", "create_allocate_trace"],
     }
+
+
+def _analyze_parametric_verification_usage(source: str) -> dict:
+    """分析关系映射和参数图计算调用是否遵循先建模、后映射、再计算的顺序。"""
+    try:
+        tree = ast.parse(source or "")
+    except SyntaxError as exc:
+        return {
+            "ok": False,
+            "warnings": [f"Could not analyze parametric verification because the script has syntax errors: {exc}"],
+            "relation_mapping_lines": [],
+            "parametric_calculation_lines": [],
+            "next_recommended_actions": [],
+        }
+
+    relation_mapping_lines: list[int] = []
+    parametric_calculation_lines: list[int] = []
+    constraint_expression_lines: list[int] = []
+    parametric_diagram_lines: list[int] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = _call_name(node.func)
+        lineno = getattr(node, "lineno", 0) or 0
+        if name == "CreateRelationMapping":
+            relation_mapping_lines.append(lineno)
+        elif name == "CalculateParametricDiagram":
+            parametric_calculation_lines.append(lineno)
+        elif name == "SetConstraintExpression":
+            constraint_expression_lines.append(lineno)
+        elif name == "NewPARDiagram":
+            parametric_diagram_lines.append(lineno)
+
+    relation_mapping_lines.sort()
+    parametric_calculation_lines.sort()
+    constraint_expression_lines.sort()
+    parametric_diagram_lines.sort()
+
+    warnings: list[str] = []
+    if parametric_calculation_lines:
+        first_calculation = parametric_calculation_lines[0]
+        if any(line > first_calculation for line in relation_mapping_lines):
+            warnings.append(
+                "CreateRelationMapping(...) appears after CalculateParametricDiagram(...). Create all mappings before calculating the parametric diagram."
+            )
+        if any(line > first_calculation for line in constraint_expression_lines):
+            warnings.append(
+                "SetConstraintExpression(...) appears after CalculateParametricDiagram(...). Define constraints before calculation."
+            )
+        if any(line > first_calculation for line in parametric_diagram_lines):
+            warnings.append(
+                "NewPARDiagram(...) appears after CalculateParametricDiagram(...). Create the parametric diagram before calculation."
+            )
+
+    return {
+        "ok": not warnings,
+        "warnings": warnings,
+        "relation_mapping_lines": relation_mapping_lines,
+        "parametric_calculation_lines": parametric_calculation_lines,
+        "constraint_expression_lines": constraint_expression_lines,
+        "parametric_diagram_lines": parametric_diagram_lines,
+        "verification_chain_detected": bool(relation_mapping_lines and parametric_calculation_lines),
+        "next_recommended_actions": [
+            "Create and type every mapping endpoint, define constraints and parameter-diagram bindings, then call CreateRelationMapping(...) from source to target.",
+            "Call CalculateParametricDiagram(...) only after all mappings are complete, then inspect parameter_calculation.json values, constraint satisfaction, and error.",
+        ]
+        if relation_mapping_lines or parametric_calculation_lines
+        else [],
+    }
+
 
 
 _ACTIVITY_LOGIC_NODE_CALLS = {
@@ -276,6 +349,8 @@ _STATE_NODE_CALLS = {
     "CreateCompositeState": "composite_state",
     "CreateOrthogonalState": "orthogonal_state",
 }
+
+_STATE_SUBSTATE_CALL = "CreateSubState"
 
 _STATE_CONTROL_NODE_CALLS = {
     "CreateStateInitialNode": "initial",
@@ -465,6 +540,7 @@ def _analyze_state_machine_complexity(source: str) -> dict:
     diagrams: dict[str, dict] = {}
     state_machine_defs: list[dict] = []
     state_behaviors: list[dict] = []
+    substates: list[dict] = []
 
     def _diagram_item(diagram_name: str) -> dict:
         return diagrams.setdefault(
@@ -502,6 +578,19 @@ def _analyze_state_machine_complexity(source: str) -> dict:
                         "lineno": getattr(node, "lineno", 0) or 0,
                     }
                 )
+        elif name == _STATE_SUBSTATE_CALL:
+            parent_state = _literal_string(_get_call_arg(node, 0, "parentStateFullName"))
+            graph_name = _literal_string(_get_call_arg(node, 2, "graphName"))
+            if parent_state:
+                substates.append(
+                    {
+                        "parent_state": parent_state,
+                        "graph_name": graph_name,
+                        "node_type": "substate",
+                        "api": name,
+                        "lineno": getattr(node, "lineno", 0) or 0,
+                    }
+                )
         elif name in _STATE_CONTROL_NODE_CALLS:
             diagram_name = _literal_string(_get_call_arg(node, 0, "fullDiagramName"))
             graph_name = _literal_string(_get_call_arg(node, 1, "graphName"))
@@ -534,6 +623,12 @@ def _analyze_state_machine_complexity(source: str) -> dict:
 
     for diagram_name, item in diagrams.items():
         stm_name = diagram_name.rsplit(".", 1)[0] if "." in diagram_name else ""
+        # CreateSubState 只给父状态全名，不给图名；按状态机前缀归入对应状态机图。
+        item["states"].extend(
+            substate
+            for substate in substates
+            if stm_name and substate["parent_state"].startswith(f"{stm_name}.")
+        )
         item["behavior_bindings"] = [
             binding
             for binding in state_behaviors
@@ -583,7 +678,7 @@ def _analyze_state_machine_complexity(source: str) -> dict:
         "next_recommended_actions": [
             "Prefer lifecycle-rich state machines with stable states, choice branches, normal/error/recovery transitions, and at least one state behavior.",
             "Use CreateStateForkNode/CreateStateJoinNode or CreateCompositeState/CreateOrthogonalState when the modeled object has concurrent or nested modes.",
-            "Call AutoLayoutDiagram(...) after creating the state machine diagram.",
+            "After all diagram blocks and lines are created, call AutoLayoutDiagram(...), then AdjustDiagramFrameToOptimalSize(...).",
         ]
         if warnings
         else [],
@@ -606,6 +701,7 @@ def _analyze_state_transition_usage(source: str) -> dict:
     element_name_transition_calls: list[dict] = []
     bad_transition_calls: list[dict] = []
     explicit_graph_name_missing: list[dict] = []
+    substate_graph_names: dict[str, set[str]] = {}
     state_machine_value_props: dict[str, set[str]] = {}
     invalid_transition_conditions: list[dict] = []
     transition_condition_unknown_variables: list[dict] = []
@@ -683,6 +779,12 @@ def _analyze_state_transition_usage(source: str) -> dict:
                     }
                     _diagram_item(diagram_name)["missing_explicit_graph_names"].append(bad)
                     explicit_graph_name_missing.append(bad)
+        elif name == _STATE_SUBSTATE_CALL:
+            parent_state = _literal_string(_get_call_arg(node, 0, "parentStateFullName"))
+            graph_name = _literal_string(_get_call_arg(node, 2, "graphName"))
+            if parent_state and graph_name:
+                stm_name = parent_state.rsplit(".", 1)[0] if "." in parent_state else parent_state
+                substate_graph_names.setdefault(stm_name, set()).add(graph_name)
         elif name == "NewValueProperty":
             full_name = _literal_string(_get_call_arg(node, 0, "fullName"))
             if "." in full_name:
@@ -726,28 +828,18 @@ def _analyze_state_transition_usage(source: str) -> dict:
             if created.get("graph_name")
         }
         stm_name = _stm_name_from_diagram(diagram_name)
+        for parent_name, graph_names in substate_graph_names.items():
+            if stm_name and parent_name.startswith(f"{stm_name}."):
+                created_names.update(graph_names)
         known_value_props = state_machine_value_props.get(stm_name, set())
         outgoing_counts: dict[str, dict[str, object]] = {}
         for transition in item["transitions_by_graph_name"]:
-            full_name_endpoints = [
-                value
-                for value in (transition["start_graph_name"], transition["end_graph_name"])
-                if value and "." in value
-            ]
-            if full_name_endpoints:
-                bad = {
-                    **transition,
-                    "diagram": diagram_name,
-                    "problem": "full_name_passed_to_graph_name_api",
-                    "endpoints": full_name_endpoints,
-                }
-                item["full_name_passed_to_graph_name_api"].append(bad)
-                bad_transition_calls.append(bad)
-
+            # 新版 API 允许 ByGraphName 端点按图形名优先、再按限定名兜底解析。
+            # 因此只对简单图形名做本地创建顺序校验，避免误伤合法的限定名端点。
             unknown = [
                 value
                 for value in (transition["start_graph_name"], transition["end_graph_name"])
-                if value and created_names and value not in created_names
+                if value and "." not in value and created_names and value not in created_names
             ]
             if unknown:
                 bad = {
@@ -806,13 +898,9 @@ def _analyze_state_transition_usage(source: str) -> dict:
                 f"State machine diagram `{diagram_name}` uses CreateStateTransitionLine(...). For automatically created CreateState* graph nodes, use CreateStateTransitionLineByGraphName(...) with exact graphName endpoints instead."
             )
 
-    if any(item["full_name_passed_to_graph_name_api"] for item in diagrams.values()):
-        warnings.append(
-            "Some CreateStateTransitionLineByGraphName(...) calls pass full element names. The start/end arguments must be simple graphName values without '.'."
-        )
     if any(item["unknown_graph_name_endpoints"] for item in diagrams.values()):
         warnings.append(
-            "Some state transition endpoints do not match any graphName created earlier in the same diagram. Check graphName spelling and creation order."
+            "Some simple state transition endpoints do not match any graphName created earlier in the same diagram. Check graphName spelling and creation order."
         )
     if explicit_graph_name_missing:
         warnings.append(
@@ -842,7 +930,7 @@ def _analyze_state_transition_usage(source: str) -> dict:
         "multiple_unconditional_transitions": multiple_unconditional_transitions,
         "next_recommended_actions": [
             "Create every state/control node with an explicit simple graphName.",
-            "Connect all automatically created state-machine nodes with CreateStateTransitionLineByGraphName(diagram, startGraphName, endGraphName).",
+            "Connect automatically created state-machine nodes with CreateStateTransitionLineByGraphName(diagram, startGraphName, endGraphName); qualified endpoints are allowed when the backend can resolve them.",
             "For branching transitions, use explicit boolean conditions such as `time > 1` and create every referenced variable as a same-named value property under the state machine first.",
             "Allow at most one unconditional outgoing transition from the same state or control node.",
             "Do not retry failed state-machine connections with CreateStateTransitionLine(...) unless both endpoints are pre-existing elements with verified full names.",
@@ -1706,7 +1794,21 @@ def _analyze_ibd_connector_usage(source: str) -> dict:
     }
 
 
-@mcp.tool()
+_DESTRUCTIVE_SCRIPT_PATTERN = re.compile(
+    r"\b(?:Delete|Remove|Overwrite|Clear|Close|Reset|Exit)[A-Za-z0-9_]*\s*\(|\b(?:unlink|rmdir|remove|removedirs)\s*\(",
+    re.IGNORECASE,
+)
+
+
+def classify_script_risk(source: str) -> str:
+    """Classify an executable modeling script for host confirmation UX."""
+    return "destructive" if _DESTRUCTIVE_SCRIPT_PATTERN.search(source or "") else "write"
+
+
+@mcp.tool(
+    annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False},
+    meta={"sysbuilder": {"risk": "write", "dynamicRiskField": "risk"}},
+)
 def run_script(
     python_source: str = "",
     script_path: str = "",
@@ -1724,6 +1826,7 @@ def run_script(
     使用要求：
     - 本工具只负责执行现成的建模脚本。
     - AI 客户端在需要建模时，应先自动生成完整的 Python 建模脚本，再调用本工具执行。
+    - 跨需求指标、活动接口、块值属性和约束参数传值时，先调用 CreateRelationMapping(...) 建立源到目标映射，再调用 CalculateParametricDiagram(...)，并检查结果 JSON 中的数值、约束满足状态和错误信息。
     - 完整 SysML 建模脚本通常应包含追溯关系：需求应通过 satisfy 连接到满足它的活动/功能/结构元素，功能或活动应通过 allocate 分配到结构块。
     - 若只需补建追溯关系，优先使用高层工具 `create_satisfy_trace` 和 `create_allocate_trace`，它们会自动插入两端元素、创建连线并布局。
     - 活动图中的逻辑节点（初始、结束、决策、合并、分叉、汇合、事件、信号、时间事件）必须使用 graphName 连线，避免生成无连线孤立节点。
@@ -1734,13 +1837,14 @@ def run_script(
     - 活动脚本中的变量只能使用该活动自己的接口名、输入/输出端口名或输入/输出参数名；脚本相关数据对象流必须显式连接对应端口/参数，不要直接连到活动本身。
     - 所有执行脚本都会以 UTF-8 保存后再运行。
     - 运行时会自动注入建模规范上下文，可直接使用 `MODELING_RULES`、
-      `GetModelingRuleText()`、`PrintModelingRuleSummary()` 读取规则。
+      `GetModelingRuleText()`、`PrintModelingRuleSummary()` 读取规则，并使用 `OUTPUT_ROOT`
+      获取中间数据根目录。
 
     入参说明：
     - `python_source`：待执行的完整 Python 建模脚本。
     - `script_path`：已有脚本路径；当 `python_source` 为空时读取这个文件执行。
     - `script_name`：未指定 `script_path` 时，落盘脚本文件名。
-    - `working_directory`：脚本执行目录；默认是工作区根目录。
+    - `working_directory`：脚本执行目录；默认是 MCP 中间数据根目录（用户目录下的 `Sysbuilder/SysMLAIOutput`）。
     """
     source = (python_source or "").strip()
     incoming_script_path = (script_path or "").strip()
@@ -1865,7 +1969,7 @@ def run_script(
     else:
         filename = saved_path or "<run_script>"
 
-    wd = Path(working_directory).expanduser() if working_directory else get_workspace_root()
+    wd = Path(working_directory).expanduser() if working_directory else get_output_root()
     if not wd.is_absolute():
         wd = (get_workspace_root() / wd).resolve()
     wd.mkdir(parents=True, exist_ok=True)
@@ -1874,11 +1978,13 @@ def run_script(
     result.update(
         {
             "tool": "run_script",
+            "risk": classify_script_risk(source),
             "script_path": saved_path,
             "working_directory": str(wd),
             "session": session,
             "api_preflight": api_preflight,
             "traceability_analysis": _analyze_traceability_usage(source),
+            "parametric_verification_analysis": _analyze_parametric_verification_usage(source),
             "activity_logic_node_analysis": activity_logic_node_analysis,
             "state_machine_complexity_analysis": _analyze_state_machine_complexity(source),
             "state_transition_usage_analysis": state_transition_usage_analysis,

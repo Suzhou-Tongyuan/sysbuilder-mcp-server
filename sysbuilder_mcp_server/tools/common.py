@@ -14,9 +14,12 @@ from sysbuilder_mcp_server.path_config import (
     get_output_root,
     get_resources_root,
     get_sysbuilder_process_path,
+    get_sysml_v1_api_host,
+    get_sysml_v1_api_port,
     get_workspace_root,
+    is_sysml_v1_embedded_mode,
 )
-from sysbuilder_mcp_server.core import StartSysbuilder
+from sysbuilder_mcp_server.core import ConnectSysbuilder, StartSysbuilder
 from sysbuilder_mcp_server.core.resources_manifest import (
     load_runtime_resource_bundle,
     load_runtime_resource_texts,
@@ -76,6 +79,38 @@ def ensure_utf8_script_text(source: str) -> str:
 
 def ensure_sysbuilder_session(process_path: str = "", ip: str = "", port: Optional[int] = None) -> Dict[str, Any]:
     conn = MwConnect()
+    embedded_host = get_sysml_v1_api_host()
+    embedded_port = get_sysml_v1_api_port()
+    if is_sysml_v1_embedded_mode():
+        if embedded_port is None:
+            return {
+                "ok": False,
+                "action": "embedded_connection_failed",
+                "error": "SYSML_V1_API_PORT must be an integer from 1 to 65535.",
+                "stdout": "",
+                "stderr": "",
+            }
+        if conn.get_is_connected() and int(getattr(conn, "sysbuilderPort", 0) or 0) == embedded_port:
+            return {
+                "ok": True,
+                "action": "already_connected_embedded",
+                "ip": embedded_host or "127.0.0.1",
+                "port": embedded_port,
+                "stdout": "",
+                "stderr": "",
+            }
+        with capture_python_output() as (buf_out, buf_err):
+            connected = ConnectSysbuilder(ip=embedded_host or None, port=embedded_port)
+        return {
+            "ok": bool(connected),
+            "action": "connected_embedded" if connected else "embedded_connection_failed",
+            "ip": embedded_host or "127.0.0.1",
+            "port": embedded_port,
+            "stdout": _truncate(buf_out.getvalue()),
+            "stderr": _truncate(buf_err.getvalue()),
+            "hint": "The embedded AI is pinned to the current SysBuilder process and will not start or select another instance.",
+        }
+
     if conn.get_is_connected():
         return {"ok": True, "action": "already_connected", "stdout": "", "stderr": ""}
 
@@ -221,6 +256,7 @@ def get_runtime_modeling_rules_metadata() -> Dict[str, Any]:
     return {
         "auto_loaded": True,
         "available_globals": [
+            "OUTPUT_ROOT",
             "MODELING_RULES",
             "RESOURCE_BUNDLE",
             "SYSBUILDER_MODELING_RULES_TEXT",

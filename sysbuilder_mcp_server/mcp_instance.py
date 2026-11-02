@@ -17,7 +17,7 @@ except ImportError:
             self._name = _name
             self.instructions = instructions
 
-        def tool(self):
+        def tool(self, *args, **kwargs):
             def _decorator(func):
                 return func
 
@@ -33,10 +33,18 @@ _BASE_INSTRUCTIONS = (
     "Prefer the dedicated Sysbuilder MCP tools over inventing unsupported helper APIs.\n"
     "Before any Sysbuilder modeling task, first read `resources/rules/Sysbuilder建模要求.md`.\n"
     "Before any Sysbuilder scripting task, also read `resources/quickref/sysbuilder_python_api.md`.\n"
-    "For a new modeling session, prefer starting a new Sysbuilder instance directly.\n"
+    "When SYSML_V1_API_PORT is present, connect only to that embedded Sysbuilder instance and never start or select another instance.\n"
+    "Outside embedded mode, a new modeling session may start a new Sysbuilder instance directly.\n"
     "After a successful `start(...)`, continue modeling directly and do not call `find()` or `connect()` again unless the user explicitly asks to inspect or connect to an existing instance.\n"
     "For Sysbuilder modeling-rule questions, query rule text with lookup_sysbuilder_rules when needed.\n"
+    "For Sysbuilder product usage, UI, menu, shortcut, or how-to questions, first call search_sysbuilder_help; read the relevant pages with read_sysbuilder_help_pages when more context is needed, and cite PDF page numbers in the answer.\n"
     "For Sysbuilder scripting tasks, query APIs with lookup_sysbuilder_api before writing the full script.\n"
+    "Store intermediate data under the configured output root, which defaults to the user's `Sysbuilder/SysMLAIOutput` directory.\n"
+    "Tool metadata exposes `meta.sysbuilder.risk` as read, write, or destructive; run_script additionally classifies its script dynamically.\n"
+    "For team collaboration, use team_session, team_resources, team_repository, and team_history with the documented action values.\n"
+    "Login with team_session before accessing remote team resources.\n"
+    "Inspect team repository status before commit, pull, restore, or reset operations. Never expose team passwords in responses or logs.\n"
+    "Delete, restore, and reset tools require confirm=true after the user explicitly confirms the destructive operation.\n"
 )
 
 try:
@@ -67,8 +75,9 @@ else:
         "\n## Paths\n\n"
         f"- Workspace root: `{get_workspace_root()}`\n"
         f"- Resources root: `{get_resources_root()}`\n"
-        f"- Output root: `{get_output_root()}`\n"
+        f"- Intermediate data root: `{get_output_root()}`\n"
         "- 若资源目录不在默认位置，请通过 `MCP_RESOURCES_DIR` 或 `--resources-dir` 显式指定。\n"
+        "- 中间数据目录可通过 `MCP_OUTPUT_DIR` 或 `--output-dir` 显式覆盖。\n"
     )
     _DEFAULT_RULES_FRAG, _DEFAULT_RULES_META = load_default_rules_for_instructions()
     _SYSBUILDER_RULES_FRAG, _SYSBUILDER_RULES_META = load_sysbuilder_rules_for_instructions()

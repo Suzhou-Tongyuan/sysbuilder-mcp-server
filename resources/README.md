@@ -11,6 +11,8 @@
 - `skills/`
   - 存放任务技能目录
   - 每个技能目录通常包含 `SKILL.md`，也可能包含 `references/`、`agents/` 等补充资料
+- `examples/`
+  - 存放可随 MCP 包分发的示例工程、示例脚本和推荐调用模式
 
 ## 文件说明
 
@@ -23,6 +25,7 @@
 - `./resources/skills/sysml-modeling-standard/references/SysML建模规范.md`：SysML 建模参考规范
 - `./resources/quickref/sysbuilder_python_api.md`：Sysbuilder Python 接口速查与自动建模实践
 - `./resources/skills/sysml-modeling-standard/agents/openai.yaml`：该技能在 AI 客户端中的展示配置
+- `./example/architecture_tradeoff/汽车案例_SysML/`：架构权衡汽车案例示例工程和 `architect_test.py` 分析脚本
 
 ## 提示 AI 先读资源
 

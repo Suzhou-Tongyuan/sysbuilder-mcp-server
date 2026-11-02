@@ -7,20 +7,69 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-
+# 独立 MCP 仓库解析 core 中同步维护的 API 源文件。
 API_FILE_PATH = Path(__file__).with_name("sysbuilder_api.py")
 
 QUERY_ALIASES: dict[str, tuple[str, ...]] = {
+    "嵌套属性": ("ShowInternalProperties", "CreateConnectorLine", "CreateBindingConnectorLine"),
+    "显示内部属性": ("ShowInternalProperties",),
+    "显示内部结构": ("ShowInternalProperties",),
+    "组成属性": ("NewPartProperty", "SetType", "InsertElementToDiagram", "ShowInternalProperties"),
     "创建项目": ("NewProject",),
     "新建项目": ("NewProject",),
     "新建工程": ("NewProject",),
     "保存项目": ("SaveProject", "SaveProjectAs"),
     "打开项目": ("OpenProjectFile",),
+    "团队协同": (
+        "LoginTeam",
+        "ListTeamResources",
+        "GetTeamRepositoryStatus",
+        "CommitTeamRepository",
+        "PullTeamRepository",
+        "PushTeamRepository",
+    ),
+    "团队登录": ("LoginTeam", "GetTeamSessionInfo", "LogoutTeam"),
+    "协同登录": ("LoginTeam", "GetTeamSessionInfo", "LogoutTeam"),
+    "团队资源": ("ListTeamResources", "SearchPublicTeamRepositories"),
+    "公共仓库": ("SearchPublicTeamRepositories",),
+    "本地仓库": ("ListLocalTeamRepositories",),
+    "团队分类": ("CreateTeamGroup", "UpdateTeamGroup", "DeleteTeamGroup"),
+    "克隆团队仓库": ("CloneTeamRepository", "CloneTeamGroup"),
+    "团队提交": ("GetTeamRepositoryStatus", "CommitTeamRepository"),
+    "团队拉取": ("GetTeamRepositoryStatus", "PullTeamRepository"),
+    "团队推送": ("CommitTeamRepository", "PushTeamRepository"),
+    "发布团队工程": ("PublishProjectToTeam",),
+    "团队提交历史": ("GetTeamRepositoryHistory", "GetTeamCommitDetails"),
+    "还原团队文件": ("RestoreTeamRepositoryFiles",),
+    "重置团队版本": ("ResetTeamRepositoryVersion",),
+    "导入模型": ("ImportXML", "ImportReqExcel", "ImportReqIF"),
+    "关系映射": ("CreateRelationMapping",),
+    "需求指标映射": ("CreateRelationMapping",),
+    "活动接口映射": ("CreateRelationMapping",),
+    "块值属性映射": ("CreateRelationMapping",),
+    "约束参数映射": ("CreateRelationMapping",),
+    "参数图计算": ("CalculateParametricDiagram",),
+    "约束计算": ("CalculateParametricDiagram",),
+    "计算参数图": ("CalculateParametricDiagram",),
+    "验证需求指标": ("CreateRelationMapping", "CalculateParametricDiagram"),
+    "自动布局": ("AutoLayoutDiagram",),
+    "调整画布边框": ("AdjustDiagramFrameToOptimalSize",),
+    "画布边框": ("AdjustDiagramFrameToOptimalSize",),
+    "视图边框": ("AdjustDiagramFrameToOptimalSize",),
+    "最佳尺寸": ("AdjustDiagramFrameToOptimalSize",),
+    "导出语义": ("ExportSemanticJson",),
+    "语义JSON": ("ExportSemanticJson",),
+    "语义树": ("ExportSemanticJson",),
+    "架构权衡": ("RunArchitectureTradeoff",),
+    "权衡分析": ("RunArchitectureTradeoff",),
     "新建包": ("NewPackage",),
     "新建块": ("NewBlock",),
+    "新建实例": ("NewInstance",),
+    "实例": ("NewInstance",),
     "新建活动": ("NewActivity",),
     "活动图": ("NewACTDiagram",),
     "状态机": ("NewStateMachine", "NewSTMDiagram"),
+    "子状态": ("CreateSubState",),
     "状态迁移": ("CreateStateTransitionLine", "CreateStateTransitionLineByGraphName"),
     "需求图": ("NewREQDiagram",),
     "新建需求": ("NewRequirement",),
@@ -30,6 +79,13 @@ QUERY_ALIASES: dict[str, tuple[str, ...]] = {
     "控制流": ("CreateActivityControlFlowLine", "CreateActivityControlFlowLineByGraphName"),
     "初始节点": ("CreateActivityInitialNode", "CreateStateInitialNode"),
     "结束节点": ("CreateActivityFinalNode", "CreateStateFinalNode"),
+    "DoDAF": ("NewAV1Diagram", "NewCV1aDiagram", "NewOV1aDiagram", "NewSV1aDiagram", "NewDIV1Diagram"),
+    "UAF": ("NewAV1Diagram", "NewCV1aDiagram", "NewOV1aDiagram", "NewSV1aDiagram", "NewDIV1Diagram"),
+    "AV视图": ("NewAV1Diagram", "NewAV2Diagram", "NewAV3Diagram"),
+    "CV视图": ("NewCV1aDiagram", "NewCV1bDiagram", "NewCV2Diagram", "NewCV3Diagram", "NewCV4Diagram", "NewCV5Diagram"),
+    "OV视图": ("NewOV1aDiagram", "NewOV1bDiagram", "NewOV1cDiagram", "NewOV1dDiagram", "NewOV1fDiagram", "NewOV2Diagram", "NewOV4Diagram", "NewOV5aDiagram", "NewOV5bDiagram", "NewOV6bDiagram", "NewOV6cDiagram"),
+    "SV视图": ("NewSV1aDiagram", "NewSV1bDiagram", "NewSV2Diagram", "NewSV3Diagram", "NewSV4Diagram", "NewSV4bDiagram", "NewSV5aDiagram", "NewSV5bDiagram", "NewSV5cDiagram"),
+    "DIV视图": ("NewDIV1Diagram",),
 }
 
 
@@ -159,12 +215,20 @@ def suggest_api_entries(query: str = "", limit: int = 20) -> list[dict[str, Any]
         return entries[:capped]
 
     alias_hits = []
+    lowered_raw = raw.lower()
     for alias, names in QUERY_ALIASES.items():
-        if alias in raw:
+        if alias.lower() in lowered_raw:
             alias_hits.extend(names)
     if alias_hits:
         by_name = {str(item["name"]): item for item in entries}
-        resolved = [by_name[name] for name in alias_hits if name in by_name]
+        # 同一查询可能同时命中多个近义词，按首次出现顺序去重，避免重复返回同一 API。
+        resolved = []
+        seen_names: set[str] = set()
+        for name in alias_hits:
+            if name not in by_name or name in seen_names:
+                continue
+            seen_names.add(name)
+            resolved.append(by_name[name])
         if resolved:
             return resolved[:capped]
 
@@ -173,7 +237,7 @@ def suggest_api_entries(query: str = "", limit: int = 20) -> list[dict[str, Any]
     if close_names:
         return [by_name[name] for name in close_names[:capped]]
 
-    lowered = raw.lower()
+    lowered = lowered_raw
     token_hits = [
         item
         for item in entries

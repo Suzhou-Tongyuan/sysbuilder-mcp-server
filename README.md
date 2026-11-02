@@ -1,5 +1,9 @@
 ﻿# Sysbuilder MCP Server
 
+> 内置 AI 模式使用 `SYSML_V1_API_HOST`、`SYSML_V1_API_PORT` 和 `SYSML_V1_INSTALL_DIR`，并通过
+> `SYSBUILDER_WORKSPACE_DIR` 传递两代产品共用的工程目录。只要设置了 `SYSML_V1_API_PORT`，
+> MCP 就只连接该端口，失败时不会启动或选择其他 Sysbuilder 实例。
+
 `Sysbuilder MCP Server` 用于把 Sysbuilder 对外开放的 Python API 封装成 MCP tools，供 Codex、Claude Code 以及其他支持 MCP 的客户端调用。
 
 ## 目录结构
@@ -12,11 +16,30 @@
 其中，MCP 服务启动时会自动读取 `resources/` 下的规则摘要与技能入口，并把它们注入 MCP instructions。
 如果资源目录不在默认位置，请通过 `--resources-dir` 或环境变量 `MCP_RESOURCES_DIR` 显式指定。
 
+建模脚本、语义 JSON、架构权衡对象代码和分析图片等中间数据默认写入用户目录下的 `Sysbuilder/SysMLAIOutput`（Windows 下通常为 `%USERPROFILE%\Sysbuilder\SysMLAIOutput`）。可通过 `--output-dir` 或环境变量 `MCP_OUTPUT_DIR` 显式覆盖。
+
 ## 系统要求
 
 - Windows 10/11 64 位
 - 已安装 Sysbuilder，或可直接访问 `Sysbuilder.exe`
 - 推荐使用 Sysbuilder 自带的 `external\Python311\python.exe`
+
+## 单文件 EXE 与源码维护
+
+`main` 分支维护 SysML v1 MCP；SysML v2 MCP 在独立分支中维护。开发源码、资源、测试和构建脚本应保留，EXE 是发布产物。
+单文件 EXE 内嵌 Python、MCP、API 和建模资源，运行时不需要同目录中的 MCP 源码或资源目录。
+修改 API、MCP 工具或建模规则后必须重新构建 EXE；外置文件变化不会自动更新已有 EXE。
+产品原有的 `mworks.sysbuilder` Python API 属于 Sysbuilder 软件，不应作为 MCP 开发源码删除。
+
+构建命令：
+
+```powershell
+.\scripts\build-onefile.ps1 -PythonPath "<Sysbuilder运行目录>\external\Python311\python.exe"
+```
+
+默认产物为仓库根目录的 `sysbuilder-mcp-server-win64.exe`。构建使用仓库中同步维护的
+`sysbuilder_mcp_server/core/sysbuilder_api.py`、MCP 源码和 `resources/`。
+现有 `install_mcp.ps1` 仍保留源码部署方式；使用单文件部署时，应将客户端启动命令配置为该 EXE。
 
 ## 安装
 
@@ -49,9 +72,9 @@ mcp_server_config.json
 
 ### 工具列表
 
-当前服务提供 10 个核心工具，聚焦 Sysbuilder 的模型构建、需求导入、API 查询、模型生成及文档导出，支撑复杂系统设计建模。
+当前服务提供 24 个核心工具，包括 2 个用户手册检索工具、4 个团队协同领域工具和 IBD 内部属性显示工具 `show_internal_properties`。
 
-从用途上看，这些工具可以分为以下 4 类。
+从用途上看，这些工具可以分为以下 7 类。
 
 #### 1. 会话准备与生命周期
 
@@ -176,8 +199,79 @@ mcp_server_config.json
       <td>几何参数文档生成工具</td>
       <td>用于调用 <code>GenGeometricParam</code>，从模块定义图中提取目标模块的几何参数并生成 Markdown 文档。适合在结构模型稳定后输出参数说明和设计接口说明，并为后续 CAD 模型提供几何参数输入。</td>
     </tr>
+    <tr>
+      <td><code>export_semantic_json</code></td>
+      <td>语义 JSON 导出工具</td>
+      <td>用于调用 <code>ExportSemanticJson</code>，把当前工程或指定元素子树导出为 SysML2 语义树 JSON 文件。适合做模型语义检查、外部分析和数据归档。</td>
+    </tr>
+    <tr>
+      <td><code>run_architecture_tradeoff</code></td>
+      <td>架构权衡分析工具</td>
+      <td>用于调用 <code>RunArchitectureTradeoff</code>，运行外部 Python 权衡脚本并导出分析图片。适合在架构方案比较、参数敏感性分析和评审材料生成时使用。</td>
+    </tr>
   </tbody>
 </table>
+
+#### 5. 参数映射与约束验证
+
+<table>
+  <colgroup>
+    <col style="width: 28%;" />
+    <col style="width: 18%;" />
+    <col style="width: 54%;" />
+  </colgroup>
+  <thead>
+    <tr>
+      <th>工具英文名</th>
+      <th>工具中文描述</th>
+      <th>工具具体功能描述</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>create_relation_mapping</code></td>
+      <td>关系映射工具</td>
+      <td>用于调用 <code>CreateRelationMapping</code>，按源变量到目标变量建立映射。支持需求指标、活动输入/输出接口、块值属性和约束输入/输出参数等可映射变量；建立前应保证两端类型、单位和值语义兼容。</td>
+    </tr>
+    <tr>
+      <td><code>calculate_parametric_diagram</code></td>
+      <td>参数图计算工具</td>
+      <td>用于调用 <code>CalculateParametricDiagram</code> 执行约束计算，并读取 <code>parameter_calculation.json</code>。验证需求指标时，应同时核对计算值、约束满足状态和错误信息。</td>
+    </tr>
+  </tbody>
+</table>
+
+参数验证的推荐顺序为：创建并配置映射端点 -> 完成参数图约束与 binding connector -> 建立全部关系映射 -> 计算参数图 -> 检查结果 JSON。
+
+#### 6. 帮助与使用说明
+
+| MCP 工具 | 说明 |
+| --- | --- |
+| `search_sysbuilder_help` | 按自然语言问题搜索《MWORKS.Sysbuilder 用户手册》，返回相关 PDF 页码和原文片段。 |
+| `read_sysbuilder_help_pages` | 读取指定的连续手册页，一次最多 5 页，用于补充完整操作步骤。 |
+
+回答 Sysbuilder 界面、菜单、快捷键和操作流程问题时，应先调用
+`search_sysbuilder_help`，必要时再调用 `read_sysbuilder_help_pages`，并在回答中标注手册 PDF 页码。
+
+#### 7. 团队协同与仓库版本管理
+
+21 个软件协同 API 收敛为 4 个领域工具，通过 `action` 选择具体操作。这样既保留完整能力，也避免 MCP 工具列表过长。
+
+| MCP 工具 | action |
+| --- | --- |
+| `team_session` | `login`、`logout`、`info` |
+| `team_resources` | `list_remote`、`search_public`、`list_local`、`create_group`、`update_group`、`delete_group`、`create_repository`、`clone_repository`、`clone_group`、`publish_project` |
+| `team_repository` | `status`、`commit`、`pull`、`push` |
+| `team_history` | `list`、`details`、`restore_files`、`reset_version` |
+
+推荐工作流：
+
+1. `team_session(action="login", ...)` 登录后，用 `action="info"` 确认会话。
+2. 用 `team_resources` 查询 `resourcePath`，再执行分类、克隆或发布操作。
+3. 对当前团队工程先调用 `team_repository(action="status")`，再提交、拉取和推送。
+4. 删除分类、还原文件或重置版本前必须获得用户明确确认，并传 `confirm=true`。
+
+登录密码仅传给底层 `LoginTeam`，MCP 结果不会回显密码。
 
 ## 说明
 

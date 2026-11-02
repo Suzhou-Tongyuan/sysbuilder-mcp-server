@@ -6,7 +6,12 @@ from typing import Any
 from sysbuilder_mcp_server.core import ConnectSysbuilder, Exit, FindSysbuilder, StartSysbuilder
 from sysbuilder_mcp_server.core.sysbuilder_connect import MwConnect
 from sysbuilder_mcp_server.mcp_instance import mcp
-from sysbuilder_mcp_server.path_config import get_sysbuilder_process_path
+from sysbuilder_mcp_server.path_config import (
+    get_sysbuilder_process_path,
+    get_sysml_v1_api_host,
+    get_sysml_v1_api_port,
+    is_sysml_v1_embedded_mode,
+)
 from sysbuilder_mcp_server.tools.common import _json, capture_python_output
 
 
@@ -20,7 +25,16 @@ def _serialize_find_result(result: Any) -> dict:
     }
 
 
-@mcp.tool()
+def _embedded_endpoint() -> tuple[str, int] | None:
+    if not is_sysml_v1_embedded_mode():
+        return None
+    return get_sysml_v1_api_host(), get_sysml_v1_api_port() or 0
+
+
+@mcp.tool(
+    annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False},
+    meta={"sysbuilder": {"risk": "write"}},
+)
 def start(
     process_path: str = "",
     ip: str = "",
@@ -37,6 +51,16 @@ def start(
     continue modeling directly and do not call `find()` or `connect()` again
     unless the user explicitly asks to connect to an existing instance.
     """
+    if _embedded_endpoint() is not None:
+        return _json(
+            {
+                "ok": False,
+                "tool": "start",
+                "error": "disabled_in_embedded_mode",
+                "hint": "The embedded MCP may only use the current SysML v1 process supplied by SYSML_V1_API_HOST/PORT.",
+            }
+        )
+
     proc_arg = (process_path or "").strip()
     if not proc_arg:
         default_process = get_sysbuilder_process_path()
@@ -71,7 +95,10 @@ def start(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+    meta={"sysbuilder": {"risk": "read"}},
+)
 def find() -> str:
     """
     Find currently available Sysbuilder instances and ports.
@@ -79,6 +106,16 @@ def find() -> str:
     Use this only when the user explicitly asks to inspect existing instances
     or connect to one that is already running.
     """
+    if _embedded_endpoint() is not None:
+        return _json(
+            {
+                "ok": False,
+                "tool": "find",
+                "error": "disabled_in_embedded_mode",
+                "hint": "Instance discovery is forbidden when SYSML_V1_API_PORT identifies the current process.",
+            }
+        )
+
     with capture_python_output() as (buf_out, buf_err):
         result = FindSysbuilder()
 
@@ -93,7 +130,10 @@ def find() -> str:
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+    meta={"sysbuilder": {"risk": "read"}},
+)
 def connect(ip: str = "", port: int = 0) -> str:
     """
     Connect to an already running Sysbuilder instance.
@@ -102,6 +142,19 @@ def connect(ip: str = "", port: int = 0) -> str:
     pick the first available port. Prefer this tool only when the user clearly
     wants to attach to an existing instance instead of starting a new one.
     """
+    embedded = _embedded_endpoint()
+    if embedded is not None:
+        ip, port = embedded
+        if port == 0:
+            return _json(
+                {
+                    "ok": False,
+                    "tool": "connect",
+                    "error": "invalid_embedded_port",
+                    "hint": "SYSML_V1_API_PORT must be an integer from 1 to 65535; discovery and fallback are disabled.",
+                }
+            )
+
     with capture_python_output() as (buf_out, buf_err):
         result = ConnectSysbuilder(
             ip=((ip or "").strip() or None),
@@ -121,7 +174,10 @@ def connect(ip: str = "", port: int = 0) -> str:
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": False},
+    meta={"sysbuilder": {"risk": "destructive"}},
+)
 def exit() -> str:
     """
     Exit the currently connected Sysbuilder session.

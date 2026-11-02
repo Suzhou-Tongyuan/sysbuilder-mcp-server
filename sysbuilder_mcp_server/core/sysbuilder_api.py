@@ -370,6 +370,40 @@ def ImportXML(path: str = ""):
     return _run_func(ImportXML, locals())
 
 @mw_connect_decorator(_MwConnect._process_path)
+def ExportXML(path: str = "", modelName: str = "SysbuilderRootModel") -> str:
+    """
+    导出 UML 2.5 XMI/XML 文件
+
+    语法
+        >>> ExportXML(path:str = "", modelName:str = "SysbuilderRootModel")
+    说明
+        ExportXML(path, modelName) 用于将当前 Sysbuilder 工程导出为 UML 2.5 XMI XML 文件。
+        当 path 为空时，默认导出到当前工程工作目录；当 path 为目录时，默认文件名为 SysBuilderUMLExport.xml。
+        本接口复用文件菜单“导出 UML 2.5 XMI 文件”的全模型导出逻辑。
+    示例
+        示例1：导出到指定 XML 文件
+        >>> print(ExportXML("C:/Users/TR/Documents/SysBuilderUMLExport.xml"))
+        结果：
+        > C:/Users/TR/Documents/SysBuilderUMLExport.xml
+    输入参数
+        path - XML 文件或目标目录的绝对路径，可为空
+        数据类型：str
+        modelName - 导出 XML 中的模型名称，默认 SysbuilderRootModel
+        数据类型：str
+    返回值
+        `str` : 导出成功返回生成的 XML 文件绝对路径，失败返回空字符串
+    另请参阅
+        ImportXML
+    """
+    if path is None:
+        path = ""
+    if modelName in ("", None):
+        modelName = "SysbuilderRootModel"
+    return _run_func(ExportXML, locals())
+
+ExportXMI = ExportXML
+
+@mw_connect_decorator(_MwConnect._process_path)
 def ImportReqExcel(path: str = ""):
     """
     导入需求Excel文件
@@ -480,6 +514,135 @@ def ExportReqIF(path: str, fullName: str = "") -> str:
         ImportReqIF
     """
     return _run_func(ExportReqIF, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def ExportSemanticJson(path: str = "", fullName: str = "", includeHidden: bool = False) -> str:
+    """
+    导出 SysML2 语义 JSON 文件
+
+    语法
+        >>> ExportSemanticJson(path:str = "", fullName:str = "", includeHidden:bool = False)
+    说明
+        ExportSemanticJson(path, fullName, includeHidden) 用于将当前工程的 SysML2 语义树导出为 JSON 文件。
+        本接口返回导出的 JSON 文件路径，不直接返回 JSON 内容。
+        当 path 为空时，优先导出到工程工作目录下的 semantic_tree.json；若工程工作目录不可用，则导出到进程当前目录。
+        当 fullName 为空时，导出整个工程语义树；当 fullName 不为空时，只导出该元素及其递归 owned 子元素。
+        导出文件顶层的 root 只是 JSON 包装占位节点，不属于 SysML2 语义模型内容；真实语义元素从 root.children 开始。
+        JSON 节点只包含 fullName、type、properties、children 四类核心字段。
+        type 为字符串类型名，不导出数字枚举；图元素会带 Diagram 标识，便于直接看出该节点是图。
+        properties 保留影响语义树显示和理解的属性，例如 ScalarValues.Real；内部 SysbuilderDefinition.* 默认不输出。
+        需求指标节点的 type 为 RequirementIndex，properties 中包含非空的 indexValue、indexUnit 和 indexDescription。
+        includeHidden=False 时按 SysML2 语义隐藏标记过滤，但用户可见的需求指标始终保留；不承诺与模型浏览器插件扩展显示状态完全一致。
+    示例
+        示例1：导出当前工程语义树
+        >>> print(ExportSemanticJson("C:/Temp/semantic_tree.json"))
+        结果：
+        > C:/Temp/semantic_tree.json
+
+        示例2：导出指定元素子树并包含隐藏元素
+        >>> print(ExportSemanticJson("C:/Temp/semantic_subtree.json", "Package1.Block1", True))
+        结果：
+        > C:/Temp/semantic_subtree.json
+
+        示例3：使用默认路径导出整个工程
+        >>> print(ExportSemanticJson())
+        结果：
+        > 当前工作目录/semantic_tree.json
+    输入参数
+        path - 导出的 JSON 文件路径；允许为空，空值表示优先使用工程工作目录下的 semantic_tree.json
+        数据类型：str
+        fullName - 导出根元素全名；为空表示导出整个工程，不为空表示只导出指定元素及其子元素
+        数据类型：str
+        includeHidden - 是否包含 SysML2 语义隐藏元素，默认 False；该参数不追随插件扩展的模型浏览器显示状态
+        数据类型：bool
+    返回值
+        `str` : 导出成功返回生成的 JSON 文件绝对路径，失败返回空字符串
+    另请参阅
+        OpenProjectFile
+    """
+    if path is None:
+        path = ""
+    if fullName is None:
+        fullName = ""
+    if includeHidden in ("", None):
+        includeHidden = False
+    return _run_func(ExportSemanticJson, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def RunArchitectureTradeoff(scriptPath: str, imageDir: str = "") -> str:
+    """
+    运行架构权衡计算并导出图片
+
+    语法
+        >>> RunArchitectureTradeoff(scriptPath:str, imageDir:str = "")
+    说明
+        RunArchitectureTradeoff(scriptPath, imageDir) 用于按当前工程模型运行架构权衡 Python 计算脚本。
+        scriptPath 为外部应用生成的 Python 脚本路径，必须存在且可读取；脚本内容会在模型类和实例变量生成后执行。
+        imageDir 为空时，自动在当前工程工作路径下创建一个 architecture_tradeoff_时间戳 目录；不为空时使用指定目录。
+        计算过程中会自动保存 matplotlib 已创建的图片，不弹出图片窗口。
+        返回值是实际图片输出目录，不直接返回图片内容。脚本执行失败时返回空字符串，并通过运行消息返回错误原因。
+    示例
+        示例1：运行架构权衡脚本并导出到默认目录
+        >>> print(RunArchitectureTradeoff("C:/Project/python/architect_test.py"))
+        结果：
+        > C:/Project/architecture_tradeoff_20260707_153000_001
+
+        示例2：运行脚本并指定图片目录
+        >>> print(RunArchitectureTradeoff("C:/Project/python/architect_test.py", "C:/Temp/tradeoff_images"))
+        结果：
+        > C:/Temp/tradeoff_images
+    输入参数
+        scriptPath - 架构权衡 Python 脚本文件路径；不能为空
+        数据类型：str
+        imageDir - 图片输出目录；为空时自动在工作路径下创建目录
+        数据类型：str
+    返回值
+        `str` : 成功返回图片输出目录绝对路径，失败返回空字符串
+    另请参阅
+        OpenProjectFile
+    """
+    if scriptPath is None:
+        scriptPath = ""
+    if imageDir is None:
+        imageDir = ""
+    return _run_func(RunArchitectureTradeoff, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def ExportArchitectureTradeoffObjectCode(path: str = "") -> str:
+    """
+    导出架构权衡对象代码文本
+
+    语法
+        >>> ExportArchitectureTradeoffObjectCode(path:str = "")
+    说明
+        ExportArchitectureTradeoffObjectCode(path) 用于导出架构权衡窗口中“全选”架构方案时，
+        “架构对象代码”区域生成的 Python 文本。导出内容包含模型定义类代码和实例初始化代码，
+        与界面中全选架构方案后的对象代码显示保持一致。
+        path 为空时，自动在当前工程工作路径下生成 architecture_tradeoff_object_code.py。
+        path 为已存在文件夹时，在该文件夹下生成 architecture_tradeoff_object_code.py。
+        path 为文件路径且没有扩展名时，自动补充 .py 扩展名；父文件夹不存在时会自动创建。
+        返回值是实际导出的对象代码文件路径，不直接返回文件内容。执行失败时返回空字符串，并通过运行消息返回错误原因。
+    示例
+        示例1：导出到默认位置
+        >>> print(ExportArchitectureTradeoffObjectCode())
+        结果：
+        > C:/Project/architecture_tradeoff_object_code.py
+
+        示例2：导出到指定文件
+        >>> print(ExportArchitectureTradeoffObjectCode("C:/Temp/tradeoff_object_code.py"))
+        结果：
+        > C:/Temp/tradeoff_object_code.py
+    输入参数
+        path - 对象代码输出文件或已存在文件夹路径；为空时使用默认输出文件
+        数据类型：str
+    返回值
+        `str` : 成功返回对象代码文件绝对路径，失败返回空字符串
+    另请参阅
+        RunArchitectureTradeoff
+    """
+    if path is None:
+        path = ""
+    return _run_func(ExportArchitectureTradeoffObjectCode, locals())
 
 @mw_connect_decorator(_MwConnect._process_path)
 def SaveProject():
@@ -855,7 +1018,7 @@ def NewArchitectureFunctionTraceabilityMatrix(fullName: str = "") -> str:
         >>>NewArchitectureFunctionTraceabilityMatrix(fullName:str)
     说明
         NewArchitectureFunctionTraceabilityMatrix(fullName)用于新建“架构功能追溯矩阵”。
-        该接口等效于：先新建关系矩阵，再将行数据筛选为活动并全选、列数据筛选为块并全选、关系类型筛选为分配。
+        该接口等效于：先新建关系矩阵，再将行数据筛选为块并全选、列数据筛选为活动并全选、关系类型筛选为分配。
         函数返回的`str`表示新建的元素名，新建失败时为空。
         fullName表示新建图的全名，与父级之间使用`.`进行分隔；若名称自身包含`.`，请使用单引号包裹该名称段（如 `A.'B.b'`，表示 A 下有个子元素 B.b）。
     示例
@@ -890,6 +1053,760 @@ def NewRetrospectiveAnalysisDiagram(fullName: str = "") -> str:
         `str` : 新建的元素名
     """
     return _run_func(NewRetrospectiveAnalysisDiagram, locals())
+
+# ============================== DODAF/UAF 体系视图 ==============================
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewAV1Diagram(diagramName: str = "") -> str:
+    """
+    新建AV-1全景视图
+
+    语法
+        >>>NewAV1Diagram(diagramName:str="")
+    说明
+        NewAV1Diagram(diagramName)用于新建AV-1全景视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如AV1Diagram1）；软件内部自动拼接固定父包路径AV.'AV-1'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        示例1：缺省参数，自动生成默认名
+        >>>print(NewAV1Diagram())
+        结果：
+        > AV.'AV-1'.AV1Diagram1
+        示例2：指定视图名称
+        >>>print(NewAV1Diagram("myAV1Diagram"))
+        结果：
+        > AV.'AV-1'.myAV1Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewAV1Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewAV2Diagram(diagramName: str = "") -> str:
+    """
+    新建AV-2全景视图
+
+    语法
+        >>>NewAV2Diagram(diagramName:str="")
+    说明
+        NewAV2Diagram(diagramName)用于新建AV-2全景视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如AV2Diagram1）；软件内部自动拼接固定父包路径AV.'AV-2'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewAV2Diagram("myAV2Diagram"))
+        结果：
+        > AV.'AV-2'.myAV2Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewAV2Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewAV3Diagram(diagramName: str = "") -> str:
+    """
+    新建AV-3全景视图
+
+    语法
+        >>>NewAV3Diagram(diagramName:str="")
+    说明
+        NewAV3Diagram(diagramName)用于新建AV-3全景视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如AV3Diagram1）；软件内部自动拼接固定父包路径AV.'AV-3'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewAV3Diagram("myAV3Diagram"))
+        结果：
+        > AV.'AV-3'.myAV3Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewAV3Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewCV1aDiagram(diagramName: str = "") -> str:
+    """
+    新建CV-1a能力视图
+
+    语法
+        >>>NewCV1aDiagram(diagramName:str="")
+    说明
+        NewCV1aDiagram(diagramName)用于新建CV-1a能力视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如CV1aDiagram1）；软件内部自动拼接固定父包路径CV.'CV-1a'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewCV1aDiagram("myCV1aDiagram"))
+        结果：
+        > CV.'CV-1a'.myCV1aDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewCV1aDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewCV1bDiagram(diagramName: str = "") -> str:
+    """
+    新建CV-1b能力视图
+
+    语法
+        >>>NewCV1bDiagram(diagramName:str="")
+    说明
+        NewCV1bDiagram(diagramName)用于新建CV-1b能力视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如CV1bDiagram1）；软件内部自动拼接固定父包路径CV.'CV-1b'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewCV1bDiagram("myCV1bDiagram"))
+        结果：
+        > CV.'CV-1b'.myCV1bDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewCV1bDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewCV2Diagram(diagramName: str = "") -> str:
+    """
+    新建CV-2能力视图
+
+    语法
+        >>>NewCV2Diagram(diagramName:str="")
+    说明
+        NewCV2Diagram(diagramName)用于新建CV-2能力视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如CV2Diagram1）；软件内部自动拼接固定父包路径CV.'CV-2'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewCV2Diagram("myCV2Diagram"))
+        结果：
+        > CV.'CV-2'.myCV2Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewCV2Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewCV3Diagram(diagramName: str = "") -> str:
+    """
+    新建CV-3能力视图
+
+    语法
+        >>>NewCV3Diagram(diagramName:str="")
+    说明
+        NewCV3Diagram(diagramName)用于新建CV-3能力视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如CV3Diagram1）；软件内部自动拼接固定父包路径CV.'CV-3'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewCV3Diagram("myCV3Diagram"))
+        结果：
+        > CV.'CV-3'.myCV3Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewCV3Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewCV4Diagram(diagramName: str = "") -> str:
+    """
+    新建CV-4能力视图
+
+    语法
+        >>>NewCV4Diagram(diagramName:str="")
+    说明
+        NewCV4Diagram(diagramName)用于新建CV-4能力视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如CV4Diagram1）；软件内部自动拼接固定父包路径CV.'CV-4'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewCV4Diagram("myCV4Diagram"))
+        结果：
+        > CV.'CV-4'.myCV4Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewCV4Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewCV5Diagram(diagramName: str = "") -> str:
+    """
+    新建CV-5能力视图
+
+    语法
+        >>>NewCV5Diagram(diagramName:str="")
+    说明
+        NewCV5Diagram(diagramName)用于新建CV-5能力视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如CV5Diagram1）；软件内部自动拼接固定父包路径CV.'CV-5'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewCV5Diagram("myCV5Diagram"))
+        结果：
+        > CV.'CV-5'.myCV5Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewCV5Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV1aDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-1a作战概念模型
+
+    语法
+        >>>NewOV1aDiagram(diagramName:str="")
+    说明
+        NewOV1aDiagram(diagramName)用于新建OV-1a作战概念模型，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如OV1aDiagram1）；软件内部自动拼接固定父包路径OV.'OV-1a'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewOV1aDiagram("myOV1aDiagram"))
+        结果：
+        > OV.'OV-1a'.myOV1aDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV1aDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV1bDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-1b作战概念模型
+
+    语法
+        >>>NewOV1bDiagram(diagramName:str="")
+    说明
+        NewOV1bDiagram(diagramName)用于新建OV-1b作战概念模型，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如OV1bDiagram1）；软件内部自动拼接固定父包路径OV.'OV-1b'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewOV1bDiagram("myOV1bDiagram"))
+        结果：
+        > OV.'OV-1b'.myOV1bDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV1bDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV1cDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-1c作战概念模型
+
+    语法
+        >>>NewOV1cDiagram(diagramName:str="")
+    说明
+        NewOV1cDiagram(diagramName)用于新建OV-1c作战概念模型，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如OV1cDiagram1）；软件内部自动拼接固定父包路径OV.'OV-1c'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewOV1cDiagram("myOV1cDiagram"))
+        结果：
+        > OV.'OV-1c'.myOV1cDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV1cDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV1dDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-1d作战概念模型
+
+    语法
+        >>>NewOV1dDiagram(diagramName:str="")
+    说明
+        NewOV1dDiagram(diagramName)用于新建OV-1d作战概念模型，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如OV1dDiagram1）；软件内部自动拼接固定父包路径OV.'OV-1d'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewOV1dDiagram("myOV1dDiagram"))
+        结果：
+        > OV.'OV-1d'.myOV1dDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV1dDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV1fDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-1f作战概念模型
+
+    语法
+        >>>NewOV1fDiagram(diagramName:str="")
+    说明
+        NewOV1fDiagram(diagramName)用于新建OV-1f作战概念模型，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如OV1fDiagram1）；软件内部自动拼接固定父包路径OV.'OV-1f'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewOV1fDiagram("myOV1fDiagram"))
+        结果：
+        > OV.'OV-1f'.myOV1fDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV1fDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV2Diagram(diagramName: str = "") -> str:
+    """
+    新建OV-2作战视图
+
+    语法
+        >>>NewOV2Diagram(diagramName:str="")
+    说明
+        NewOV2Diagram(diagramName)用于新建OV-2作战视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如OV2Diagram1）；软件内部自动拼接固定父包路径OV.'OV-2'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewOV2Diagram("myOV2Diagram"))
+        结果：
+        > OV.'OV-2'.myOV2Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV2Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV4Diagram(diagramName: str = "") -> str:
+    """
+    新建OV-4作战视图
+
+    语法
+        >>>NewOV4Diagram(diagramName:str="")
+    说明
+        NewOV4Diagram(diagramName)用于新建OV-4作战视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如OV4Diagram1）；软件内部自动拼接固定父包路径OV.'OV-4'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewOV4Diagram("myOV4Diagram"))
+        结果：
+        > OV.'OV-4'.myOV4Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV4Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV5aDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-5a作战视图
+
+    语法
+        >>>NewOV5aDiagram(diagramName:str="")
+    说明
+        NewOV5aDiagram(diagramName)用于新建OV-5a作战视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName支持以下格式：
+        - 空字符串：自动生成父元素名（作战活动）和图名（如OV5aDiagram1）。
+        - 单个名称（如"myDiagram"）：自动生成父元素名，使用指定图名。
+        - "父元素名.图名"格式（如"活动1.myDiagram"）：在指定父元素下创建图，若父元素不存在则新建。
+        最多只接受一个分隔符（.），名称自身包含.时请用单引号包裹（如'活动.A'.myDiagram）。
+        拆分后的父元素名和图名会按SysML2模型名规则自动规范化，例如"02_父元素.02_图名"会创建为"'02_父元素'.'02_图名'"。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        示例1：缺省参数，自动生成默认名
+        >>>print(NewOV5aDiagram())
+        结果：
+        > OV.'OV-5a'.作战活动1.OV5aDiagram1
+        示例2：指定图名
+        >>>print(NewOV5aDiagram("myDiagram"))
+        结果：
+        > OV.'OV-5a'.作战活动1.myDiagram
+        示例3：指定父元素和图名
+        >>>print(NewOV5aDiagram("活动1.myDiagram"))
+        结果：
+        > OV.'OV-5a'.活动1.myDiagram
+        示例4：名称需要规范化
+        >>>print(NewOV5aDiagram("02_父元素.02_图名"))
+        结果：
+        > OV.'OV-5a'.'02_父元素'.'02_图名'
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV5aDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV5bDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-5b作战视图
+
+    语法
+        >>>NewOV5bDiagram(diagramName:str="")
+    说明
+        NewOV5bDiagram(diagramName)用于新建OV-5b作战视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName支持以下格式：
+        - 空字符串：自动生成父元素名（作战活动）和图名（如OV5bDiagram1）。
+        - 单个名称（如"myDiagram"）：自动生成父元素名，使用指定图名。
+        - "父元素名.图名"格式（如"活动1.myDiagram"）：在指定父元素下创建图，若父元素不存在则新建。
+        最多只接受一个分隔符（.），名称自身包含.时请用单引号包裹（如'活动.A'.myDiagram）。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        示例1：缺省参数，自动生成默认名
+        >>>print(NewOV5bDiagram())
+        结果：
+        > OV.'OV-5b'.作战活动1.OV5bDiagram1
+        示例2：指定图名
+        >>>print(NewOV5bDiagram("myDiagram"))
+        结果：
+        > OV.'OV-5b'.作战活动1.myDiagram
+        示例3：指定父元素和图名
+        >>>print(NewOV5bDiagram("活动1.myDiagram"))
+        结果：
+        > OV.'OV-5b'.活动1.myDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV5bDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV6bDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-6b作战视图
+
+    语法
+        >>>NewOV6bDiagram(diagramName:str="")
+    说明
+        NewOV6bDiagram(diagramName)用于新建OV-6b作战视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName支持以下格式：
+        - 空字符串：自动生成父元素名（作战状态机）和图名（如OV6bDiagram1）。
+        - 单个名称（如"myDiagram"）：自动生成父元素名，使用指定图名。
+        - "父元素名.图名"格式（如"状态机1.myDiagram"）：在指定父元素下创建图，若父元素不存在则新建。
+        最多只接受一个分隔符（.），名称自身包含.时请用单引号包裹（如'状态.A'.myDiagram）。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        示例1：缺省参数，自动生成默认名
+        >>>print(NewOV6bDiagram())
+        结果：
+        > OV.'OV-6b'.作战状态机1.OV6bDiagram1
+        示例2：指定图名
+        >>>print(NewOV6bDiagram("myDiagram"))
+        结果：
+        > OV.'OV-6b'.作战状态机1.myDiagram
+        示例3：指定父元素和图名
+        >>>print(NewOV6bDiagram("状态机1.myDiagram"))
+        结果：
+        > OV.'OV-6b'.状态机1.myDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV6bDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewOV6cDiagram(diagramName: str = "") -> str:
+    """
+    新建OV-6c作战视图
+
+    语法
+        >>>NewOV6cDiagram(diagramName:str="")
+    说明
+        NewOV6cDiagram(diagramName)用于新建OV-6c作战视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName支持以下格式：
+        - 空字符串：自动生成父元素名（作战交互）和图名（如OV6cDiagram1）。
+        - 单个名称（如"myDiagram"）：自动生成父元素名，使用指定图名。
+        - "父元素名.图名"格式（如"交互1.myDiagram"）：在指定父元素下创建图，若父元素不存在则新建。
+        最多只接受一个分隔符（.），名称自身包含.时请用单引号包裹（如'交互.A'.myDiagram）。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        示例1：缺省参数，自动生成默认名
+        >>>print(NewOV6cDiagram())
+        结果：
+        > OV.'OV-6c'.作战交互1.OV6cDiagram1
+        示例2：指定图名
+        >>>print(NewOV6cDiagram("myDiagram"))
+        结果：
+        > OV.'OV-6c'.作战交互1.myDiagram
+        示例3：指定父元素和图名
+        >>>print(NewOV6cDiagram("交互1.myDiagram"))
+        结果：
+        > OV.'OV-6c'.交互1.myDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewOV6cDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV1aDiagram(diagramName: str = "") -> str:
+    """
+    新建SV-1a系统视图
+
+    语法
+        >>>NewSV1aDiagram(diagramName:str="")
+    说明
+        NewSV1aDiagram(diagramName)用于新建SV-1a系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV1aDiagram1）；软件内部自动拼接固定父包路径SV.'SV-1a'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV1aDiagram("mySV1aDiagram"))
+        结果：
+        > SV.'SV-1a'.mySV1aDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV1aDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV1bDiagram(diagramName: str = "") -> str:
+    """
+    新建SV-1b系统视图
+
+    语法
+        >>>NewSV1bDiagram(diagramName:str="")
+    说明
+        NewSV1bDiagram(diagramName)用于新建SV-1b系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV1bDiagram1）；软件内部自动拼接固定父包路径SV.'SV-1b'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV1bDiagram("mySV1bDiagram"))
+        结果：
+        > SV.'SV-1b'.mySV1bDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV1bDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV2Diagram(diagramName: str = "") -> str:
+    """
+    新建SV-2系统视图
+
+    语法
+        >>>NewSV2Diagram(diagramName:str="")
+    说明
+        NewSV2Diagram(diagramName)用于新建SV-2系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV2Diagram1）；软件内部自动拼接固定父包路径SV.'SV-2'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV2Diagram("mySV2Diagram"))
+        结果：
+        > SV.'SV-2'.mySV2Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV2Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV3Diagram(diagramName: str = "") -> str:
+    """
+    新建SV-3系统视图
+
+    语法
+        >>>NewSV3Diagram(diagramName:str="")
+    说明
+        NewSV3Diagram(diagramName)用于新建SV-3系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV3Diagram1）；软件内部自动拼接固定父包路径SV.'SV-3'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV3Diagram("mySV3Diagram"))
+        结果：
+        > SV.'SV-3'.mySV3Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV3Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV4Diagram(diagramName: str = "") -> str:
+    """
+    新建SV-4系统视图
+
+    语法
+        >>>NewSV4Diagram(diagramName:str="")
+    说明
+        NewSV4Diagram(diagramName)用于新建SV-4系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV4Diagram1）；软件内部自动拼接固定父包路径SV.'SV-4'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV4Diagram("mySV4Diagram"))
+        结果：
+        > SV.'SV-4'.mySV4Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV4Diagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV4bDiagram(diagramName: str = "") -> str:
+    """
+    新建SV-4b系统视图
+
+    语法
+        >>>NewSV4bDiagram(diagramName:str="")
+    说明
+        NewSV4bDiagram(diagramName)用于新建SV-4b系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV4bDiagram1）；软件内部自动拼接固定父包路径SV.'SV-4b'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV4bDiagram("mySV4bDiagram"))
+        结果：
+        > SV.'SV-4b'.mySV4bDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV4bDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV5aDiagram(diagramName: str = "") -> str:
+    """
+    新建SV-5a系统视图
+
+    语法
+        >>>NewSV5aDiagram(diagramName:str="")
+    说明
+        NewSV5aDiagram(diagramName)用于新建SV-5a系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV5aDiagram1）；软件内部自动拼接固定父包路径SV.'SV-5a'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV5aDiagram("mySV5aDiagram"))
+        结果：
+        > SV.'SV-5a'.mySV5aDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV5aDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV5bDiagram(diagramName: str = "") -> str:
+    """
+    新建SV-5b系统视图
+
+    语法
+        >>>NewSV5bDiagram(diagramName:str="")
+    说明
+        NewSV5bDiagram(diagramName)用于新建SV-5b系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV5bDiagram1）；软件内部自动拼接固定父包路径SV.'SV-5b'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV5bDiagram("mySV5bDiagram"))
+        结果：
+        > SV.'SV-5b'.mySV5bDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV5bDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewSV5cDiagram(diagramName: str = "") -> str:
+    """
+    新建SV-5c系统视图
+
+    语法
+        >>>NewSV5cDiagram(diagramName:str="")
+    说明
+        NewSV5cDiagram(diagramName)用于新建SV-5c系统视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如SV5cDiagram1）；软件内部自动拼接固定父包路径SV.'SV-5c'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewSV5cDiagram("mySV5cDiagram"))
+        结果：
+        > SV.'SV-5c'.mySV5cDiagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewSV5cDiagram, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewDIV1Diagram(diagramName: str = "") -> str:
+    """
+    新建DIV-1信息与数据视图
+
+    语法
+        >>>NewDIV1Diagram(diagramName:str="")
+    说明
+        NewDIV1Diagram(diagramName)用于新建DIV-1信息与数据视图，函数返回的`str`表示新建视图的完整路径，新建失败时为空。
+        diagramName表示视图名称，缺省时自动生成默认名称（如DIV1Diagram1）；软件内部自动拼接固定父包路径DIV.'DIV-1'。
+        若父包不存在（如非DODAF工程），则报错返回空。
+    示例
+        >>>print(NewDIV1Diagram("myDIV1Diagram"))
+        结果：
+        > DIV.'DIV-1'.myDIV1Diagram
+    输入参数
+        diagramName - 视图名称（可选，缺省时自动生成）
+        数据类型：str
+    返回值
+        `str` : 新建视图的完整路径
+    """
+    return _run_func(NewDIV1Diagram, locals())
 
 # ------------------------------模型树元素---------------------------------------
 
@@ -1132,6 +2049,33 @@ def NewActor(fullName: str = "") -> str:
         `str` : 新建的元素名
     """
     return _run_func(NewActor, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def NewInstance(fullName: str = "", definitionFullName: str = "") -> str:
+    """
+    新建实例
+
+    语法
+        >>>NewInstance(fullName:str, definitionFullName:str)
+    说明
+        NewInstance(fullName, definitionFullName) 用于按指定定义创建实例，函数返回的`str`表示新建实例的全名，新建失败时为空。
+        fullName 表示实例的全名，与父级之间使用`.`进行分隔；若名称自身包含`.`，请使用单引号包裹该名称段（如 `A.'B.b'`）。
+        definitionFullName 表示实例对应定义的全名，也可传基础值类型短名（如 Real/Integer/Boolean/String）。
+        接口会先校验 definitionFullName 是否存在，并按定义类型创建对应 usage，再设置实例类型定义。
+    示例
+        示例1：创建块实例
+        >>>print(NewInstance("Package1.engine1", "Package1.EngineBlock"))
+        示例2：创建 Real 值实例
+        >>>print(NewInstance("Package1.mass", "Real"))
+    输入参数
+        fullName - 实例的全名
+        数据类型：str
+        definitionFullName - 实例定义的全名或基础值类型短名
+        数据类型：str
+    返回值
+        `str` : 新建的实例全名
+    """
+    return _run_func(NewInstance, locals())
 
 @mw_connect_decorator(_MwConnect._process_path)
 def NewPartProperty(fullName: str = "") -> str:
@@ -1431,6 +2375,28 @@ def AutoLayoutDiagram(fullDiagramName: str = "") -> bool:
     return _run_func(AutoLayoutDiagram, locals())
 
 @mw_connect_decorator(_MwConnect._process_path)
+def AdjustDiagramFrameToOptimalSize(fullDiagramName: str) -> bool:
+    """
+    将视图画布边框调整到最佳尺寸
+
+    语法
+        >>> AdjustDiagramFrameToOptimalSize(fullDiagramName:str)
+    说明
+        根据目标视图中可见图元的范围调整画布边框，目标视图无需预先打开，也不会切换当前视图。
+    示例
+        >>> print(AdjustDiagramFrameToOptimalSize("Package1.System.IBD1"))
+    输入参数
+        fullDiagramName - 目标视图全名
+        数据类型：str
+    返回值
+        `bool` : 调整成功返回 True；视图不存在、没有持久化边框或没有有效内容时返回 False
+    另请参阅
+        AutoLayoutDiagram
+        ExportDiagramImage
+    """
+    return _run_func(AdjustDiagramFrameToOptimalSize, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
 def StartDiagramSimulation(fullDiagramName: str) -> bool:
     """
     开始视图仿真
@@ -1516,6 +2482,45 @@ def InsertElementToDiagram(fullElementName: str, fullDiagramName: str, position:
         raise ValueError("position must be [x, y].")
     return _run_func(InsertElementToDiagram, locals())
 
+@mw_connect_decorator(_MwConnect._process_path)
+def ShowInternalProperties(fullDiagramName: str, parentPropertyPath: str, propertyNames: list = None) -> bool:
+    """在 IBD 组成属性中显示其类型的内部属性，支持多层嵌套。
+
+    先 NewPartProperty、SetType 和 InsertElementToDiagram，再显示内部属性。
+    parentPropertyPath 是图中的组成属性路径，如 "partA" 或 "partA.child"；
+    唯一宿主也可用元素全名。同类型的不同宿主必须用各自的视图路径。
+    propertyNames=None 显示全部非接口子属性；列表只增量显示指定子属性，[] 不新增。
+    已有子图元和连线保留，重复调用不重复创建；子属性仍引用类型中的原元素。
+    对嵌套组成属性再次调用即可继续展开，无须在组成属性下新建语义子元素。
+    连接时使用 CreateConnectorLine / CreateBindingConnectorLine，端点可为
+    "partA.child"、"partA.child.port"；带点的名称需用单引号包裹。
+
+    >>> ShowInternalProperties("System.IBD", "partA", ["child"])
+    >>> ShowInternalProperties("System.IBD", "partA.child")
+    >>> CreateConnectorLine("System.IBD", "partA.child.out", "partB.child.in")
+    >>> AutoLayoutDiagram("System.IBD")
+    完成全部图元显示和连线后，调用现有 AutoLayoutDiagram 统一布局。
+    返回 bool，目标不是 IBD、宿主无类型、属性不属于宿主类型或路径有歧义时失败。
+    """
+    if not isinstance(fullDiagramName, str) or not fullDiagramName.strip():
+        raise ValueError("fullDiagramName must be a non-empty string.")
+    if not isinstance(parentPropertyPath, str) or not parentPropertyPath.strip():
+        raise ValueError("parentPropertyPath must be a non-empty string.")
+    if propertyNames is not None:
+        if not isinstance(propertyNames, (list, tuple)):
+            raise TypeError("propertyNames must be a list of property names or None.")
+        if any(not isinstance(name, str) or not name.strip() for name in propertyNames):
+            raise ValueError("propertyNames must contain non-empty strings.")
+    return _ShowInternalProperties(
+        fullDiagramName, parentPropertyPath,
+        list(propertyNames) if propertyNames is not None else [], propertyNames is None)
+
+
+def _ShowInternalProperties(fullDiagramName: str, parentPropertyPath: str,
+                            propertyNames: list, showAll: bool) -> bool:
+    return _run_func(_ShowInternalProperties, locals())
+
+
 def _check_graph_name_and_position(graphName: str, position):
     if isinstance(position, tuple):
         position = list(position)
@@ -1523,6 +2528,13 @@ def _check_graph_name_and_position(graphName: str, position):
         raise ValueError("position must be [x, y].")
     if graphName and "." in graphName:
         raise ValueError("graphName must not contain '.'.")
+    return position
+
+def _check_model_name_and_position(graphName: str, position):
+    if isinstance(position, tuple):
+        position = list(position)
+    if position is not None and len(position) != 2:
+        raise ValueError("position must be [x, y].")
     return position
 
 @mw_connect_decorator(_MwConnect._process_path)
@@ -1543,6 +2555,7 @@ def CreateQuickPanelLine(lineKind: str, fullDiagramName: str, startElementName: 
 
         lineName参数用于设置连线名称（可选，默认为空）：
         - 对于`control_flow`（控制流）：格式为 "[guard]" 时被视为守卫条件，例如 "[x > 0]"
+        - 对于`transition`（转移）：作为守卫条件，例如 "x > 0"
         - 对于其他类型连线：作为普通连线名称
     示例
         >>> print(CreateQuickPanelLine("satisfy", "Package1.REQ1", "Package1.func1", "Package1.req1"))
@@ -1705,16 +2718,16 @@ def CreateRequirementRefineLine(fullDiagramName: str, startElementName: str, end
     语法
         >>> CreateRequirementRefineLine(fullDiagramName:str, startElementName:str, endElementName:str)
     说明
-        CreateRequirementRefineLine(fullDiagramName, startElementName, endElementName)用于在需求图中创建refine连线。
-        起点和终点都必须是需求元素。
+        CreateRequirementRefineLine(fullDiagramName, startElementName, endElementName)用于创建refine连线。
+        目标视图支持需求图和模块定义图；起点必须是需求，终点可为需求、活动或块。
     示例
         >>> print(CreateRequirementRefineLine("Package1.REQ1", "Package1.reqA", "Package1.reqB"))
     输入参数
-        fullDiagramName - 目标需求图全名
+        fullDiagramName - 目标视图全名
         数据类型：str
         startElementName - 起点需求元素全名
         数据类型：str
-        endElementName - 终点需求元素全名
+        endElementName - 终点需求、活动或块元素全名
         数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
@@ -2435,7 +3448,7 @@ def CreateState(fullDiagramName: str, graphName: str = "", position: list = None
     说明
         CreateState(fullDiagramName, graphName, position)用于在状态机图中创建状态。
         该接口会同时创建对应的SysML状态元素及其图形节点；未显式传入graphName时，系统会自动生成唯一图形名称。
-        graphName必须是不包含`.`的简单名；position用于指定图中的放置坐标，格式为`[x, y]`。
+        graphName按SysML2模型名规则处理，名称中包含`.`时会自动规范化为合法名称；position用于指定图中的放置坐标，格式为`[x, y]`。
     示例
         >>> print(CreateState("Package1.STM1", "state1", [100, 200]))
     输入参数
@@ -2449,11 +3462,8 @@ def CreateState(fullDiagramName: str, graphName: str = "", position: list = None
         `bool` : 创建成功返回True，否则返回False
     另请参阅
         CreateStateTransitionLineByGraphName
-        SetStateEntry
-        SetStateDoActivity
-        SetStateExit
     """
-    position = _check_graph_name_and_position(graphName, position)
+    position = _check_model_name_and_position(graphName, position)
     return _run_func(CreateState, locals())
 
 @mw_connect_decorator(_MwConnect._process_path)
@@ -2466,7 +3476,7 @@ def CreateCompositeState(fullDiagramName: str, graphName: str = "", position: li
     说明
         CreateCompositeState(fullDiagramName, graphName, position)用于在状态机图中创建组合状态。
         该接口会同时创建对应的SysML状态元素及其图形节点，并自动创建1个区域；未显式传入graphName时，系统会自动生成唯一图形名称。
-        graphName必须是不包含`.`的简单名；position用于指定图中的放置坐标，格式为`[x, y]`。
+        graphName按SysML2模型名规则处理，名称中包含`.`时会自动规范化为合法名称；position用于指定图中的放置坐标，格式为`[x, y]`。
     示例
         >>> print(CreateCompositeState("Package1.STM1", "composite_state1", [100, 200]))
     输入参数
@@ -2480,9 +3490,8 @@ def CreateCompositeState(fullDiagramName: str, graphName: str = "", position: li
         `bool` : 创建成功返回True，否则返回False
     另请参阅
         CreateStateTransitionLineByGraphName
-        SetStateSubMachine
     """
-    position = _check_graph_name_and_position(graphName, position)
+    position = _check_model_name_and_position(graphName, position)
     return _run_func(CreateCompositeState, locals())
 
 @mw_connect_decorator(_MwConnect._process_path)
@@ -2495,7 +3504,7 @@ def CreateOrthogonalState(fullDiagramName: str, graphName: str = "", position: l
     说明
         CreateOrthogonalState(fullDiagramName, graphName, position)用于在状态机图中创建正交状态。
         该接口会同时创建对应的SysML状态元素及其图形节点，并自动创建2个区域；未显式传入graphName时，系统会自动生成唯一图形名称。
-        graphName必须是不包含`.`的简单名；position用于指定图中的放置坐标，格式为`[x, y]`。
+        graphName按SysML2模型名规则处理，名称中包含`.`时会自动规范化为合法名称；position用于指定图中的放置坐标，格式为`[x, y]`。
     示例
         >>> print(CreateOrthogonalState("Package1.STM1", "orthogonal_state1", [100, 200]))
     输入参数
@@ -2509,20 +3518,49 @@ def CreateOrthogonalState(fullDiagramName: str, graphName: str = "", position: l
         `bool` : 创建成功返回True，否则返回False
     另请参阅
         CreateStateTransitionLineByGraphName
-        CreateStateRegion
+    """
+    position = _check_model_name_and_position(graphName, position)
+    return _run_func(CreateOrthogonalState, locals())
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CreateSubState(parentStateFullName: str, regionIndex: int = 0, graphName: str = "", position: list = None) -> bool:
+    """
+    在状态的指定区域中创建子状态
+
+    语法
+        >>> CreateSubState(parentStateFullName:str, regionIndex:int = 0, graphName:str = "", position:list = None)
+    说明
+        CreateSubState(parentStateFullName, regionIndex, graphName, position)用于在状态的指定区域中创建子状态。
+        该接口会同时创建对应的SysML状态元素及其图形节点；未显式传入graphName时，系统会自动生成唯一图形名称。
+        graphName必须是不包含`.`的简单名；position用于指定图中的放置坐标，格式为`[x, y]`。
+        组合状态只有1个区域（索引0），正交状态有多个区域（索引0、1等）。
+    示例
+        >>> print(CreateSubState("statemachine.composite_state", 0, "sub_state1"))
+        >>> print(CreateSubState("statemachine.orthogonal_state", 1, "sub_state2", [100, 200]))
+    输入参数
+        parentStateFullName - 父状态全名
+        数据类型：str
+        regionIndex - 区域索引，默认为0
+        数据类型：int
+        graphName - 图中的显示名称；为空时自动生成
+        数据类型：str
+        position - 图中坐标，格式为[x, y]；不传则使用系统默认位置
+        数据类型：list
+    返回值
+        `bool` : 创建成功返回True，否则返回False
+    另请参阅
+        CreateCompositeState, CreateOrthogonalState
     """
     position = _check_graph_name_and_position(graphName, position)
-    return _run_func(CreateOrthogonalState, locals())
+    return _run_func(CreateSubState, locals())
 
 def _check_simple_graph_name(name: str, param_name: str):
     """
-    校验图形名称是否为“不可分隔简单名”。
-    用于活动图中无 SysML 数据图块（如初始节点）按图形名称兜底连线。
+    校验图形名称是否有效。
+    用于活动图中按图形名称创建连线，支持简单名和带”.”的限定名。
     """
     if not isinstance(name, str) or not name.strip():
         raise ValueError(f"{param_name} must be a non-empty str.")
-    if "." in name:
-        raise ValueError(f"{param_name} must be a simple graph name without '.'.")
 
 @mw_connect_decorator(_MwConnect._process_path)
 def CreateActivityControlFlowLineByGraphName(fullDiagramName: str, startGraphName: str, endGraphName: str, lineName: str = "") -> bool:
@@ -2533,7 +3571,7 @@ def CreateActivityControlFlowLineByGraphName(fullDiagramName: str, startGraphNam
         >>> CreateActivityControlFlowLineByGraphName(fullDiagramName:str, startGraphName:str, endGraphName:str, lineName:str = "")
     说明
         CreateActivityControlFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName, lineName)用于在活动图中按图形名称创建control flow连线。
-        startGraphName和endGraphName需传图中图块名称，必须为不包含`.`的简单名。
+        startGraphName和endGraphName支持简单名或带"."的限定名（如"活动1.out1"）。
         后端会优先按SysML全名解析，找不到时自动按图形名称兜底定位并创建图线。
 
         lineName参数用于设置连线名称/守卫条件（可选，默认为空）：
@@ -2542,12 +3580,13 @@ def CreateActivityControlFlowLineByGraphName(fullDiagramName: str, startGraphNam
     示例
         >>> print(CreateActivityControlFlowLineByGraphName("Package1.ACT1", "initial_node", "decision_node"))
         >>> print(CreateActivityControlFlowLineByGraphName("Package1.ACT1", "decision_node", "actionA", "[x > 10]"))
+        >>> print(CreateActivityControlFlowLineByGraphName("活动1.活动图1", "活动1.out1", "DecisionNode"))
     输入参数
         fullDiagramName - 目标活动图全名
         数据类型：str
-        startGraphName - 起点图形名称，不含`.`
+        startGraphName - 起点图形名称，支持简单名或"元素全名.端口名"格式
         数据类型：str
-        endGraphName - 终点图形名称，不含`.`
+        endGraphName - 终点图形名称，支持简单名或"元素全名.端口名"格式
         数据类型：str
         lineName - 连线名称/守卫条件（可选），格式 "[guard]" 时被视为守卫
         数据类型：str
@@ -2569,16 +3608,17 @@ def CreateActivityObjectFlowLineByGraphName(fullDiagramName: str, startGraphName
         >>> CreateActivityObjectFlowLineByGraphName(fullDiagramName:str, startGraphName:str, endGraphName:str)
     说明
         CreateActivityObjectFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName)用于在活动图中按图形名称创建object flow连线。
-        startGraphName和endGraphName需传图中图块名称，必须为不包含`.`的简单名。
+        startGraphName和endGraphName支持简单名或带"."的限定名（如"活动1.out1"）。
         后端会优先按SysML全名解析，找不到时自动按图形名称兜底定位并创建图线。
     示例
         >>> print(CreateActivityObjectFlowLineByGraphName("Package1.ACT1", "decision_node", "merge_node"))
+        >>> print(CreateActivityObjectFlowLineByGraphName("活动1.活动图1", "活动1.活动1.out1", "DecisionNode"))
     输入参数
         fullDiagramName - 目标活动图全名
         数据类型：str
-        startGraphName - 起点图形名称，不含`.`
+        startGraphName - 起点图形名称，支持简单名或"元素全名.端口名"格式
         数据类型：str
-        endGraphName - 终点图形名称，不含`.`
+        endGraphName - 终点图形名称，支持简单名或"元素全名.端口名"格式
         数据类型：str
     返回值
         `bool` : 创建成功返回True，否则返回False
@@ -2638,7 +3678,7 @@ def CreateStateTransitionLineByGraphName(fullDiagramName: str, startGraphName: s
         数据类型：str
         startGraphName - 起点图形名称，不含`.`
         数据类型：str
-        endGraphName - 终点图形名称，不含`.`
+        endGraphName - 终点图形名称，支持简单名或"元素全名.端口名"格式
         数据类型：str
         lineName - 守卫条件（可选）
         数据类型：str
@@ -2982,6 +4022,59 @@ def GenerateModelicaSimulationFramework(fullName: str) -> bool:
     return _run_func(GenerateModelicaSimulationFramework, locals())
     
 # ------------------------------设置参数---------------------------------------
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CreateRelationMapping(sourceFullName: str, targetFullName: str) -> bool:
+    """
+    创建关系映射
+
+    语法
+        >>> CreateRelationMapping(sourceFullName:str, targetFullName:str)
+    说明
+        CreateRelationMapping(sourceFullName, targetFullName) 创建与“关系映射”窗口连线等价的映射，数据方向为源变量到目标变量。
+        是否能够创建由关系映射窗口的连线规则决定；两端必须是支持映射的变量，且不能是同一变量。重复调用已有映射按成功处理。
+        典型端点包括需求指标、活动输入/输出接口、块值属性和约束输入/输出参数；建立映射前应保证两端类型、单位和值语义兼容。
+    示例
+        示例1：把需求指标映射到任务场景参数
+        >>> print(CreateRelationMapping("Requirements.targetOrbitAltitude", "Mission.targetOrbitAltitude"))
+    输入参数
+        sourceFullName - 源变量全名（箭头起点）
+        数据类型：str
+        targetFullName - 目标变量全名（箭头终点）
+        数据类型：str
+    返回值
+        `bool` : 创建结果，True 表示映射已存在或创建成功
+    另请参阅
+        CalculateParametricDiagram
+    """
+    return _run_func(CreateRelationMapping, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CalculateParametricDiagram(fullName: str) -> str:
+    """
+    计算参数图
+
+    语法
+        >>> CalculateParametricDiagram(fullName:str)
+    说明
+        CalculateParametricDiagram(fullName) 执行与参数图“仿真 → 约束计算 → 计算”相同的流程，但不会打开参数图、切换视图或显示计算及报错弹窗。
+        结果写入工程工作目录下的 parameter_calculation.json，并返回该文件的绝对路径。
+        计算成功时 JSON 的 values 保存右侧计算参数栏的层级、元素全名和数值；计算失败时 JSON 的 error 保存错误信息。
+        执行前应完成约束表达式、参数图绑定和本场景需要的全部关系映射；验证需求指标时还应检查约束满足情况。
+    示例
+        示例1：计算指定参数图
+        >>> print(CalculateParametricDiagram("Package1.ConstraintBlock1.ParametricDiagram1"))
+        > 工程工作目录/parameter_calculation.json
+    输入参数
+        fullName - 参数图全名（不可缺省）
+        数据类型：str
+    返回值
+        `str` : JSON 结果文件的绝对路径；参数图无效或文件无法写入时返回空字符串
+    另请参阅
+        CreateRelationMapping, ExportSemanticJson
+    """
+    return _run_func(CalculateParametricDiagram, locals())
     
 @mw_connect_decorator(_MwConnect._process_path)
 def SetName(fullName: str, newName: str) -> bool:
@@ -3097,6 +4190,10 @@ def SetDefaultValue(fullName: str, newValue: str) -> bool:
         >>> SetDefaultValue(fullName:str, newValue:str)
     说明
         SetDefaultValue(fullName, newValue) 用于设置指定属性 usage 的默认值。
+        仅支持定义为数据类型或值类型的 AttributeUsage 或 ConstraintParameter；若属性定义不是值定义，应通过实例设置逻辑处理。
+        当 fullName 指向实例继承的值属性且 newValue 非空时，会先在实例下创建该值属性的重定义，再写入默认值。
+        当 newValue 为空字符串时，若目标重定义值属性没有保留实例、绑定关系或非空子属性，会按实例属性对话框逻辑删除该重定义节点；否则仅清空默认值。
+        本接口不负责新建顶层实例；设置实例继承值属性前，目标实例本身需要已存在。
     示例
         示例1：设置属性默认值
         >>> print(SetDefaultValue("Package1.Block1.speed", "100"))
@@ -3122,6 +4219,7 @@ def SetUnit(fullName: str, newUnit: str) -> bool:
         >>> SetUnit(fullName:str, newUnit:str)
     说明
         SetUnit(fullName, newUnit) 用于设置指定属性的计量单位。
+        仅支持定义为基础数据类型的 AttributeUsage 或 ConstraintParameter；若属性定义不是基础数据类型，应通过实例设置逻辑处理。
     示例
         示例1：设置属性单位
         >>> print(SetUnit("Package1.Block1.speed", "km/h"))
@@ -3259,11 +4357,10 @@ def SetStateEntry(fullName: str, behaviorFullName: str) -> bool:
         >>> SetStateEntry(fullName:str, behaviorFullName:str)
     说明
         SetStateEntry(fullName, behaviorFullName) 用于设置状态（包含普通状态、组合状态、正交状态）的入口动作。
-        fullName 应传目标状态的完整元素名，写法为“状态机全名 + '.' + 状态名”，不要传状态机图名、graphName 或推测名称。
         behaviorFullName 传空字符串可清空当前设置。
     示例
         示例1：设置入口动作
-        >>> print(SetStateEntry("包1.状态机1.状态1", "包1.不透明行为1"))
+        >>> print(SetStateEntry("包1.状态机1.状态1", "包1.活动1"))
         示例2：清空入口动作
         >>> print(SetStateEntry("包1.状态机1.状态1", ""))
     输入参数
@@ -3289,7 +4386,6 @@ def SetStateDoActivity(fullName: str, behaviorFullName: str) -> bool:
         >>> SetStateDoActivity(fullName:str, behaviorFullName:str)
     说明
         SetStateDoActivity(fullName, behaviorFullName) 用于设置状态（包含普通状态、组合状态、正交状态）的执行活动。
-        fullName 应传目标状态的完整元素名，写法为“状态机全名 + '.' + 状态名”，不要传状态机图名、graphName 或推测名称。
         behaviorFullName 传空字符串可清空当前设置。
     示例
         示例1：设置执行活动
@@ -3319,11 +4415,10 @@ def SetStateExit(fullName: str, behaviorFullName: str) -> bool:
         >>> SetStateExit(fullName:str, behaviorFullName:str)
     说明
         SetStateExit(fullName, behaviorFullName) 用于设置状态（包含普通状态、组合状态、正交状态）的出口动作。
-        fullName 应传目标状态的完整元素名，写法为“状态机全名 + '.' + 状态名”，不要传状态机图名、graphName 或推测名称。
         behaviorFullName 传空字符串可清空当前设置。
     示例
         示例1：设置出口动作
-        >>> print(SetStateExit("包1.状态机1.状态1", "包1.不透明行为2"))
+        >>> print(SetStateExit("包1.状态机1.状态1", "包1.状态机定义2"))
         示例2：清空出口动作
         >>> print(SetStateExit("包1.状态机1.状态1", ""))
     输入参数
@@ -3353,9 +4448,9 @@ def SetActivityScript(fullName: str, script: str, language: str = "") -> bool:
         仅当 fullName 指向活动类型元素时可设置。
     示例
         示例1：设置活动脚本
-        >>> print(SetActivityScript("Package1.Activity1", "result = input_a + input_b", "Groovy"))
+        >>> print(SetActivityScript("Package1.Activity1", "print('hello')", "Python"))
         示例2：仅更新脚本内容，不修改当前语言
-        >>> print(SetActivityScript("Package1.Activity1", "result = input_a - input_b"))
+        >>> print(SetActivityScript("Package1.Activity1", "print('hello v2')"))
     输入参数
         fullName - 目标活动元素的全名（包含路径）
         数据类型：str
@@ -3384,9 +4479,9 @@ def SetOpaqueBehaviorScript(fullName: str, script: str, language: str = "") -> b
         仅当 fullName 指向不透明行为元素时可设置。
     示例
         示例1：设置不透明行为脚本
-        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "result = x + y", "Groovy"))
+        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "return x + y;", "C"))
         示例2：仅更新脚本内容，不修改当前语言
-        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "result = x + y + z"))
+        >>> print(SetOpaqueBehaviorScript("Package1.Behavior1", "return x + y + z;"))
     输入参数
         fullName - 目标不透明行为元素的全名（包含路径）
         数据类型：str
@@ -3664,7 +4759,7 @@ def NewRequirementIndex(reqFullName: str, indexName: str = "", indexValue: str =
     说明
         NewRequirementIndex(reqFullName, indexName, indexValue, indexUnit, indexDesc) 用于在指定需求下创建指标。
         参数1：需求全名（必填），例如"需求1.需求1"
-        参数2：指标名（可选），默认为"指标+数字递增"
+        参数2：指标名（可选），为空时自动生成唯一默认名（如Index1）；非空时会按SysML2模型名规则自动规范化。
         参数3：指标的值（可选）
         参数4：指标的单位（可选）
         参数5：指标的描述（可选）
@@ -3675,10 +4770,14 @@ def NewRequirementIndex(reqFullName: str, indexName: str = "", indexValue: str =
         示例2：使用默认名称创建指标
         >>> result = NewRequirementIndex("需求1.需求1")
         >>> print(result)
+        示例3：指标名需要规范化
+        >>> result = NewRequirementIndex("需求1.需求1", "02_ 指标")
+        >>> print(result)
+        > '02_ 指标'
     输入参数
         reqFullName - 需求全名
         数据类型：str
-        indexName - 指标名，可为空，默认为"指标+数字递增"
+        indexName - 指标名，可为空；非空时会按SysML2模型名规则自动规范化
         数据类型：str
         indexValue - 指标的值，可为空
         数据类型：str
@@ -3719,4 +4818,658 @@ def GenGeometricParam(diagramFullName: str, moduleName: str, outputPath: str = "
         无
     """
     return _run_func(GenGeometricParam, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def LoginTeam(serverAddress: str, userName: str, password: str) -> bool:
+    """
+    登录团队资源服务器
+
+    语法
+        >>> LoginTeam(serverAddress:str, userName:str, password:str)
+    说明
+        LoginTeam(serverAddress, userName, password) 使用与软件登录窗口相同的服务器地址、用户名和密码登录团队资源服务器。
+        登录成功后可调用团队分类、远程仓库和当前团队工程相关接口；不需要传仓库ID。
+    示例
+        示例1：登录团队资源服务器
+        >>> result = LoginTeam("172.16.1.35:9999", "user", "password")
+        >>> print(result)
+        > True
+    输入参数
+        serverAddress - 团队资源服务器地址，格式为“主机:端口”
+        数据类型：str
+        userName - 团队资源服务器用户名
+        数据类型：str
+        password - 团队资源服务器密码
+        数据类型：str
+    返回值
+        `bool` : 登录成功返回 True，登录失败返回 False
+    另请参阅
+        LogoutTeam
+        GetTeamSessionInfo
+    """
+    return _run_func(LoginTeam, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def LogoutTeam() -> bool:
+    """
+    退出团队资源账号
+
+    语法
+        >>> LogoutTeam()
+    说明
+        LogoutTeam() 退出当前团队资源登录会话，不退出 Sysbuilder 程序，也不删除本地仓库。
+    示例
+        示例1：退出团队资源账号
+        >>> print(LogoutTeam())
+        > True
+    输入参数
+        无
+    返回值
+        `bool` : 退出成功返回 True，退出失败返回 False
+    另请参阅
+        LoginTeam
+        GetTeamSessionInfo
+    """
+    return _run_func(LogoutTeam, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def GetTeamSessionInfo() -> dict:
+    """
+    获取团队资源会话信息
+
+    语法
+        >>> GetTeamSessionInfo()
+    说明
+        GetTeamSessionInfo() 获取当前团队资源登录状态以及本地团队仓库根目录。
+        返回字典字段：
+        loggedIn - 是否已通过 LoginTeam 登录，数据类型为 bool
+        userName - 当前或最近一次登录的用户名，数据类型为 str
+        serverAddress - 当前或最近一次连接的服务器地址，数据类型为 str
+        localRepositoryRoot - 团队仓库在本机的存放根目录，数据类型为 str
+    示例
+        示例1：查询当前会话
+        >>> info = GetTeamSessionInfo()
+        >>> print(info["loggedIn"], info["serverAddress"])
+        > True 172.16.1.35:9999
+    输入参数
+        无
+    返回值
+        `dict` : 会话信息字典；读取失败时返回空字典
+    另请参阅
+        LoginTeam
+        LogoutTeam
+    """
+    result = _run_func(GetTeamSessionInfo, locals())
+    return json.loads(result or "{}")
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def ListTeamResources() -> list:
+    """
+    获取远程团队资源树
+
+    语法
+        >>> ListTeamResources()
+    说明
+        ListTeamResources() 获取团队资源管理器“我的仓库”下的分类和仓库树。
+        顶层返回列表，分类通过 children 递归包含下级分类或仓库，因此支持多级分类。
+        每个资源字典字段：
+        name - 界面显示名称，不包含“（协同）”后缀，数据类型为 str
+        resourcePath - 云端可见完整路径，不含虚拟根“我的仓库”，数据类型为 str
+        description - 分类或仓库描述，未设置时为空字符串，数据类型为 str
+        type - 资源类型；group 表示分类，repository 表示仓库，数据类型为 str
+        isCollaborative - 是否显示为协同资源，数据类型为 bool；不表示公开/私有或是否正在同时编辑
+        children - 下级资源列表，仅分类包含，数据类型为 list
+    示例
+        示例1：列出远程团队资源
+        >>> resources = ListTeamResources()
+        >>> print(resources[0]["name"], resources[0]["resourcePath"])
+        > 总体工程 总体工程
+    输入参数
+        无
+    返回值
+        `list` : 远程团队资源字典列表；未登录、没有资源或读取失败时返回空列表
+    另请参阅
+        SearchPublicTeamRepositories
+        ListLocalTeamRepositories
+        CloneTeamRepository
+    """
+    result = _run_func(ListTeamResources, locals())
+    return json.loads(result or "[]")
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def SearchPublicTeamRepositories(keyword: str = "") -> list:
+    """
+    搜索公共团队仓库
+
+    语法
+        >>> SearchPublicTeamRepositories(keyword:str = "")
+    说明
+        SearchPublicTeamRepositories(keyword) 按仓库名称关键字搜索当前账号可见的公共团队仓库。
+        keyword 为空字符串时查询全部可见公共仓库。
+        每个返回字典包含 name、resourcePath、description、type 和 isCollaborative 字段；
+        type 固定为 repository，公共仓库的 isCollaborative 固定为 False，不用于判断所有权或公开范围。
+    示例
+        示例1：搜索名称包含“模型”的公共仓库
+        >>> repositories = SearchPublicTeamRepositories("模型")
+        >>> print(repositories)
+    输入参数
+        keyword - 仓库名称关键字，可以为空
+        数据类型：str
+    返回值
+        `list` : 公共仓库字典列表；没有匹配项、未登录或查询失败时返回空列表
+    另请参阅
+        ListTeamResources
+        CloneTeamRepository
+    """
+    result = _run_func(SearchPublicTeamRepositories, locals())
+    return json.loads(result or "[]")
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def ListLocalTeamRepositories() -> list:
+    """
+    获取本地团队仓库列表
+
+    语法
+        >>> ListLocalTeamRepositories()
+    说明
+        ListLocalTeamRepositories() 获取团队资源管理器“本地仓库”区域中的有效 Git 仓库。
+        每个返回字典字段：
+        name - 本地仓库目录名称，与界面“仓库名”一致，数据类型为 str
+        resourcePath - 本地元数据记录的云端完整路径，元数据缺失时为空，数据类型为 str
+        localPath - 界面显示的本地仓库绝对路径，使用“/”分隔，数据类型为 str
+        projectFile - 仓库内可打开工程文件的绝对路径，没有时为空，数据类型为 str
+        isEmpty - 仓库内没有可打开工程文件时为 True，数据类型为 bool
+        description - 本地元数据记录的描述，数据类型为 str
+        name 是本地目录名，projectFile 是目录内工程文件，两者名称允许不同。
+    示例
+        示例1：列出本地团队仓库
+        >>> repositories = ListLocalTeamRepositories()
+        >>> print(repositories[0]["name"], repositories[0]["localPath"])
+    输入参数
+        无
+    返回值
+        `list` : 本地团队仓库字典列表；没有有效仓库时返回空列表
+    另请参阅
+        ListTeamResources
+        CloneTeamRepository
+    """
+    result = _run_func(ListLocalTeamRepositories, locals())
+    return json.loads(result or "[]")
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CreateTeamGroup(parentGroupPath: str, name: str, description: str) -> bool:
+    """
+    创建团队分类
+
+    语法
+        >>> CreateTeamGroup(parentGroupPath:str, name:str, description:str)
+    说明
+        CreateTeamGroup(parentGroupPath, name, description) 在指定云端父分类下创建子分类。
+        parentGroupPath 使用 ListTeamResources() 返回的 resourcePath；传空字符串表示在“我的仓库”下创建顶层分类。
+        支持多级分类，例如父路径“总体工程/子分类”表示在二级分类下继续创建。
+    示例
+        示例1：创建顶层分类
+        >>> print(CreateTeamGroup("", "临时分类", "API创建的分类"))
+        > True
+        示例2：创建非顶层分类
+        >>> print(CreateTeamGroup("临时分类", "子分类", "二级分类"))
+        > True
+    输入参数
+        parentGroupPath - 云端父分类完整路径；创建顶层分类时传空字符串
+        数据类型：str
+        name - 新分类名称
+        数据类型：str
+        description - 新分类描述；界面资源树默认不直接显示描述
+        数据类型：str
+    返回值
+        `bool` : 创建成功返回 True，创建失败返回 False
+    另请参阅
+        ListTeamResources
+        UpdateTeamGroup
+        DeleteTeamGroup
+    """
+    return _run_func(CreateTeamGroup, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CloneTeamRepository(resourcePath: str) -> bool:
+    """
+    克隆团队仓库
+
+    语法
+        >>> CloneTeamRepository(resourcePath:str)
+    说明
+        CloneTeamRepository(resourcePath) 将指定云端团队仓库克隆到当前账号的本地团队仓库根目录。
+        resourcePath 是界面可见的云端完整路径，不需要仓库ID；克隆后可通过 ListLocalTeamRepositories() 查看本地路径。
+    示例
+        示例1：克隆指定仓库
+        >>> print(CloneTeamRepository("总体工程/test2"))
+        > True
+    输入参数
+        resourcePath - 云端仓库完整路径，可使用 ListTeamResources() 返回的 resourcePath
+        数据类型：str
+    返回值
+        `bool` : 克隆成功返回 True，克隆失败返回 False
+    另请参阅
+        ListTeamResources
+        ListLocalTeamRepositories
+        CloneTeamGroup
+    """
+    return _run_func(CloneTeamRepository, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def GetTeamRepositoryStatus() -> dict:
+    """
+    获取当前团队工程状态
+
+    语法
+        >>> GetTeamRepositoryStatus()
+    说明
+        GetTeamRepositoryStatus() 获取当前打开团队工程的 Git 分支和文件变更状态。
+        所有文件路径均相对于仓库根目录。返回字典字段：
+        branch - 当前分支名；无法读取时为空，分离头状态可能为 HEAD，数据类型为 str
+        isDirty - 工作区或暂存区是否存在变更，数据类型为 bool
+        modifiedFiles - 已修改文件路径列表，数据类型为 list
+        addedFiles - 已加入版本控制或已暂存新增的文件路径列表，数据类型为 list
+        deletedFiles - 已删除文件路径列表，数据类型为 list
+        untrackedFiles - 尚未加入版本控制的文件路径列表，数据类型为 list
+        conflictedFiles - 存在合并冲突的文件路径列表，数据类型为 list
+        renamedFiles - 重命名或复制记录列表，每项包含 from 和 to，数据类型为 list
+    示例
+        示例1：查看当前团队工程变更
+        >>> status = GetTeamRepositoryStatus()
+        >>> print(status["branch"], status["modifiedFiles"])
+    输入参数
+        无；接口自动使用当前打开的团队工程
+    返回值
+        `dict` : 当前团队工程状态字典；当前工程不是团队仓库或读取失败时返回空字典
+    另请参阅
+        CommitTeamRepository
+        PullTeamRepository
+        PushTeamRepository
+    """
+    result = _run_func(GetTeamRepositoryStatus, locals())
+    return json.loads(result or "{}")
+
+
+def _CommitTeamRepository(message: str, files: str) -> bool:
+    """向 RPC 层发送已经序列化的提交文件列表。"""
+    return _run_func(_CommitTeamRepository, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CommitTeamRepository(message: str, files: list = None) -> bool:
+    """
+    提交当前团队工程
+
+    语法
+        >>> CommitTeamRepository(message:str, files:list = None)
+    说明
+        CommitTeamRepository(message, files) 提交当前打开团队工程中的本地变更。
+        files 为可选的仓库相对路径列表，可直接使用 GetTeamRepositoryStatus() 返回的
+        modifiedFiles、addedFiles、deletedFiles 或 untrackedFiles 中的路径字符串。
+        files 缺省、传入 None 或空列表时提交全部变更；传非空列表时仅提交指定文件。
+    示例
+        示例1：提交全部变更
+        >>> print(CommitTeamRepository("更新需求模型"))
+        > True
+        示例2：只提交指定文件
+        >>> print(CommitTeamRepository("更新工程文件", ["Project1.sybproj"]))
+        > True
+    输入参数
+        message - Git 提交说明，不能为空
+        数据类型：str
+        files - 要提交的仓库相对路径列表，可以缺省
+        数据类型：list
+    返回值
+        `bool` : 提交成功返回 True，提交失败返回 False
+    另请参阅
+        GetTeamRepositoryStatus
+        PushTeamRepository
+        GetTeamRepositoryHistory
+    """
+    files_json = json.dumps(files or [], ensure_ascii=False)
+    return _CommitTeamRepository(message, files_json)
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def PullTeamRepository() -> bool:
+    """
+    拉取当前团队工程
+
+    语法
+        >>> PullTeamRepository()
+    说明
+        PullTeamRepository() 从远程仓库拉取更新并合并到当前打开的团队工程。
+        接口自动确定当前工程所属仓库，不需要传仓库路径或仓库ID。
+    示例
+        示例1：拉取远程更新
+        >>> print(PullTeamRepository())
+        > True
+    输入参数
+        无；接口自动使用当前打开的团队工程
+    返回值
+        `bool` : 拉取成功返回 True，拉取失败或发生冲突返回 False
+    另请参阅
+        PushTeamRepository
+        GetTeamRepositoryStatus
+    """
+    return _run_func(PullTeamRepository, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def PushTeamRepository() -> bool:
+    """
+    推送当前团队工程
+
+    语法
+        >>> PushTeamRepository()
+    说明
+        PushTeamRepository() 将当前打开团队工程中已经提交的本地提交推送到远程仓库。
+        未提交的工作区变更不会被推送；接口不需要传仓库路径或仓库ID。
+    示例
+        示例1：推送当前工程的本地提交
+        >>> print(PushTeamRepository())
+        > True
+    输入参数
+        无；接口自动使用当前打开的团队工程
+    返回值
+        `bool` : 推送成功返回 True，推送失败返回 False
+    另请参阅
+        CommitTeamRepository
+        PullTeamRepository
+    """
+    return _run_func(PushTeamRepository, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def PublishProjectToTeam(targetGroupPath: str, repositoryName: str, description: str = "") -> bool:
+    """
+    发布当前工程到团队仓库
+
+    语法
+        >>> PublishProjectToTeam(targetGroupPath:str, repositoryName:str, description:str = "")
+    说明
+        PublishProjectToTeam(targetGroupPath, repositoryName, description) 将当前打开的本地工程发布到指定云端分类，
+        并创建对应的团队仓库。该接口用于发布已有工程，不用于创建空远程仓库。
+    示例
+        示例1：将当前工程发布到临时团队分类
+        >>> print(PublishProjectToTeam("临时团队分类", "需求模型", "需求模型工程"))
+        > True
+    输入参数
+        targetGroupPath - 目标云端分类完整路径，可使用 ListTeamResources() 返回的 resourcePath
+        数据类型：str
+        repositoryName - 发布后显示的远程仓库名称
+        数据类型：str
+        description - 远程仓库描述，可以缺省
+        数据类型：str
+    返回值
+        `bool` : 发布成功返回 True，发布失败返回 False
+    另请参阅
+        CreateTeamRepository
+        ListTeamResources
+        PushTeamRepository
+    """
+    return _run_func(PublishProjectToTeam, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def UpdateTeamGroup(targetGroupPath: str, newName: str, newDescription: str) -> bool:
+    """
+    编辑团队分类
+
+    语法
+        >>> UpdateTeamGroup(targetGroupPath:str, newName:str, newDescription:str)
+    说明
+        UpdateTeamGroup(targetGroupPath, newName, newDescription) 修改指定云端分类的名称和描述。
+        targetGroupPath 是修改前的完整路径，用它确定编辑哪个分类；不需要分类ID。
+    示例
+        示例1：编辑顶层分类
+        >>> print(UpdateTeamGroup("临时分类", "正式分类", "已调整分类名称"))
+        > True
+        示例2：编辑非顶层分类
+        >>> print(UpdateTeamGroup("正式分类/子分类", "新子分类", "二级分类描述"))
+        > True
+    输入参数
+        targetGroupPath - 修改前的云端分类完整路径
+        数据类型：str
+        newName - 修改后的分类名称
+        数据类型：str
+        newDescription - 修改后的分类描述；需要清空描述时传空字符串
+        数据类型：str
+    返回值
+        `bool` : 编辑成功返回 True，编辑失败返回 False
+    另请参阅
+        CreateTeamGroup
+        ListTeamResources
+        DeleteTeamGroup
+    """
+    return _run_func(UpdateTeamGroup, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def DeleteTeamGroup(groupPath: str) -> bool:
+    """
+    删除团队分类
+
+    语法
+        >>> DeleteTeamGroup(groupPath:str)
+    说明
+        DeleteTeamGroup(groupPath) 删除指定云端分类。groupPath 使用界面可见完整路径，不需要分类ID。
+        该操作影响远程团队资源；分类非空、没有权限或登录失效时删除失败。
+    示例
+        示例1：删除非顶层分类
+        >>> print(DeleteTeamGroup("临时分类/子分类"))
+        > True
+    输入参数
+        groupPath - 要删除的云端分类完整路径
+        数据类型：str
+    返回值
+        `bool` : 删除成功返回 True，删除失败返回 False
+    另请参阅
+        CreateTeamGroup
+        UpdateTeamGroup
+        ListTeamResources
+    """
+    return _run_func(DeleteTeamGroup, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CreateTeamRepository(groupPath: str, name: str, description: str = "") -> bool:
+    """
+    创建空的远程团队仓库
+
+    语法
+        >>> CreateTeamRepository(groupPath:str, name:str, description:str = "")
+    说明
+        CreateTeamRepository(groupPath, name, description) 在指定云端分类下创建一个不包含 Sysbuilder 工程的空远程仓库。
+        这是 Python API 的补充能力，当前软件界面没有独立的“新建空仓库”入口。
+        若要把当前工程上传为团队仓库，应使用 PublishProjectToTeam()。
+    示例
+        示例1：创建空远程仓库
+        >>> print(CreateTeamRepository("临时分类", "空仓库", "用于后续导入"))
+        > True
+    输入参数
+        groupPath - 目标云端分类完整路径
+        数据类型：str
+        name - 新远程仓库名称
+        数据类型：str
+        description - 新远程仓库描述，可以缺省
+        数据类型：str
+    返回值
+        `bool` : 创建成功返回 True，创建失败返回 False
+    另请参阅
+        PublishProjectToTeam
+        CloneTeamRepository
+        ListTeamResources
+    """
+    return _run_func(CreateTeamRepository, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def CloneTeamGroup(groupPath: str) -> bool:
+    """
+    批量克隆团队分类
+
+    语法
+        >>> CloneTeamGroup(groupPath:str)
+    说明
+        CloneTeamGroup(groupPath) 递归查找指定云端分类下的仓库，并依次克隆到本地团队仓库根目录。
+        该接口是对多次 CloneTeamRepository() 的批量封装；不需要分类ID或仓库ID。
+    示例
+        示例1：克隆分类下的全部仓库
+        >>> print(CloneTeamGroup("总体工程"))
+        > True
+    输入参数
+        groupPath - 要批量克隆的云端分类完整路径
+        数据类型：str
+    返回值
+        `bool` : 分类下所有仓库均克隆成功返回 True；任一仓库失败返回 False
+    另请参阅
+        CloneTeamRepository
+        ListTeamResources
+        ListLocalTeamRepositories
+    """
+    return _run_func(CloneTeamGroup, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def GetTeamRepositoryHistory() -> list:
+    """
+    获取当前团队工程提交历史
+
+    语法
+        >>> GetTeamRepositoryHistory()
+    说明
+        GetTeamRepositoryHistory() 获取当前打开团队工程最近的非合并 Git 提交，最多返回 200 条，按新到旧排列。
+        每个提交字典字段：
+        commitId - 完整 Git 提交哈希，数据类型为 str
+        author - 提交作者名称，数据类型为 str
+        time - ISO 8601 格式的作者时间，数据类型为 str
+        message - 提交说明首行，数据类型为 str
+    示例
+        示例1：获取最近一次提交
+        >>> history = GetTeamRepositoryHistory()
+        >>> print(history[0]["commitId"], history[0]["message"])
+    输入参数
+        无；接口自动使用当前打开的团队工程
+    返回值
+        `list` : 提交历史字典列表；当前工程不是团队仓库或读取失败时返回空列表
+    另请参阅
+        GetTeamCommitDetails
+        ResetTeamRepositoryVersion
+        CommitTeamRepository
+    """
+    result = _run_func(GetTeamRepositoryHistory, locals())
+    return json.loads(result or "[]")
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def GetTeamCommitDetails(commitId: str) -> dict:
+    """
+    获取团队工程提交详情
+
+    语法
+        >>> GetTeamCommitDetails(commitId:str)
+    说明
+        GetTeamCommitDetails(commitId) 获取当前打开团队工程中指定 Git 提交的基本信息和文件变更。
+        返回字典字段：
+        commitId - 解析后的完整 Git 提交哈希，数据类型为 str
+        author - 提交作者名称，数据类型为 str
+        time - ISO 8601 格式的作者时间，数据类型为 str
+        message - 提交说明首行，数据类型为 str
+        files - 文件变更字典列表，数据类型为 list；每项包含 status 和 path
+        status 为 A 表示该提交新增文件，M 表示该提交修改文件，D 表示该提交删除文件；
+        path 为相对仓库根目录的路径。接口禁用重命名检测，因此重命名通常显示为一条 D 和一条 A。
+    示例
+        示例1：查看最近一次提交详情
+        >>> history = GetTeamRepositoryHistory()
+        >>> details = GetTeamCommitDetails(history[0]["commitId"])
+        >>> print(details["files"])
+    输入参数
+        commitId - 完整或可唯一识别的十六进制 Git 提交哈希
+        数据类型：str
+    返回值
+        `dict` : 提交详情字典；工程、提交编号无效或读取失败时返回空字典
+    另请参阅
+        GetTeamRepositoryHistory
+        RestoreTeamRepositoryFiles
+        ResetTeamRepositoryVersion
+    """
+    result = _run_func(GetTeamCommitDetails, locals())
+    return json.loads(result or "{}")
+
+
+def _RestoreTeamRepositoryFiles(files: str) -> bool:
+    """向 RPC 层发送已经序列化的还原文件列表。"""
+    return _run_func(_RestoreTeamRepositoryFiles, locals())
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def RestoreTeamRepositoryFiles(files: list = None) -> bool:
+    """
+    还原当前团队工程文件
+
+    语法
+        >>> RestoreTeamRepositoryFiles(files:list = None)
+    说明
+        RestoreTeamRepositoryFiles(files) 丢弃当前打开团队工程中指定文件的未提交本地变更。
+        files 为仓库相对路径列表，可直接使用 GetTeamRepositoryStatus() 返回的各文件列表。
+        files 缺省、传入 None 或空列表时还原全部未提交变更。
+        该操作不能通过本接口撤销，请在调用前确认不再需要这些本地变更。
+    示例
+        示例1：还原指定文件
+        >>> print(RestoreTeamRepositoryFiles(["Project1.sybproj"]))
+        > True
+        示例2：还原全部未提交变更
+        >>> print(RestoreTeamRepositoryFiles())
+        > True
+    输入参数
+        files - 要还原的仓库相对路径列表，可以缺省
+        数据类型：list
+    返回值
+        `bool` : 还原成功返回 True，还原失败返回 False
+    另请参阅
+        GetTeamRepositoryStatus
+        ResetTeamRepositoryVersion
+    """
+    files_json = json.dumps(files or [], ensure_ascii=False)
+    return _RestoreTeamRepositoryFiles(files_json)
+
+
+@mw_connect_decorator(_MwConnect._process_path)
+def ResetTeamRepositoryVersion(commitId: str) -> bool:
+    """
+    重置当前团队工程版本
+
+    语法
+        >>> ResetTeamRepositoryVersion(commitId:str)
+    说明
+        ResetTeamRepositoryVersion(commitId) 将当前打开团队工程的本地仓库重置到指定 Git 提交。
+        commitId 可从 GetTeamRepositoryHistory() 的 commitId 字段取得。
+        该操作会改变当前工程版本并可能丢弃目标提交之后的本地状态，请谨慎调用。
+    示例
+        示例1：重置到指定历史版本
+        >>> history = GetTeamRepositoryHistory()
+        >>> print(ResetTeamRepositoryVersion(history[1]["commitId"]))
+        > True
+    输入参数
+        commitId - 目标提交的完整或可唯一识别的十六进制 Git 提交哈希
+        数据类型：str
+    返回值
+        `bool` : 重置成功返回 True，重置失败返回 False
+    另请参阅
+        GetTeamRepositoryHistory
+        GetTeamCommitDetails
+        RestoreTeamRepositoryFiles
+    """
+    return _run_func(ResetTeamRepositoryVersion, locals())
 

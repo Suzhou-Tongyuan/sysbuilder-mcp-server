@@ -16,12 +16,14 @@
    - `ArchitectureModel.Scene`
 5. 若名称段自身包含 `.`，使用单引号包裹该名称段。
 6. 自动建模时优先一次性完成：工程创建 -> 包结构 -> 元素创建 -> 关系建立 -> 视图创建 -> 图块插入 -> 所有图块插入完成后自动布局。
+   - 视图收尾固定顺序：所有图块和连线完成后调用 `AutoLayoutDiagram(...)`，再调用 `AdjustDiagramFrameToOptimalSize(...)` 将画布边框调整到最佳尺寸。
 7. 不要调用 quickref 或 `sysbuilder_api.py` 中不存在的 API；尤其禁止 `NewObjectNode`、`CreateObjectNode`、`CreateActivityActionNode`、`NewActivityActionNode`、`CreateSwimlane`、`CreateActivityPartition`、`CreateActivityParameterNode`。
 8. 当前无对象节点/活动参数节点 API；活动图数据端点只用 `NewInputPort`、`NewOutputPort` 创建，再用 `CreateActivityObjectFlowLine` 连接。
 9. 当前无泳道/活动分区 API；责任分配用包、命名、块或 allocate 关系表达。
 10. 写脚本前先在 quickref 中一次性选定本次需要的 API，不要边写边反复改用其他命名。
 11. 若某个 API 不存在，直接改写为 quickref 中已有的模式，不要输出”再查一下文档””再试另一种 API”这类过程性步骤。
 12. 若本次任务明确要求生成 DoDAF 模型，则 `NewProject(...)` 的 `projectType` 必须显式传 `dodaf`，不要继续使用默认的 `sysml`。
+13. 所有中间数据统一写入 MCP 注入的 `OUTPUT_ROOT`（默认是用户目录下的 `Sysbuilder/SysMLAIOutput`），不要再写入 MCP 部署目录内的 `output`。
 
 ---
 
@@ -36,6 +38,16 @@
 | 保存工程 | `SaveProject()` | `SaveProject()` | 保存当前工程 |
 | 另存为 | `SaveProjectAs(targetPath)` | `SaveProjectAs('C://backup//Demo.sybprojz')` | 用于显式落盘 |
 | 退出软件 | `Exit()` | `Exit()` | 强制退出，不弹提示 |
+| 导出语义 JSON | `ExportSemanticJson(path="", fullName="", includeHidden=False)` | `ExportSemanticJson(f"{OUTPUT_ROOT}//semantic_tree.json")` | 返回 JSON 文件路径；`fullName` 为空导出全工程，非空导出指定元素子树 |
+| 导出架构权衡对象代码 | `ExportArchitectureTradeoffObjectCode(path="")` | `ExportArchitectureTradeoffObjectCode(f"{OUTPUT_ROOT}//tradeoff_objects.py")` | 导出当前工程可供架构权衡脚本使用的 Python 对象代码；推荐先导出到 `OUTPUT_ROOT`（默认 `~/Sysbuilder/SysMLAIOutput`），再基于对象代码编写分析脚本 |
+| 运行架构权衡 | `RunArchitectureTradeoff(scriptPath, imageDir="")` | `RunArchitectureTradeoff(f"{OUTPUT_ROOT}//tradeoff.py", f"{OUTPUT_ROOT}//tradeoff_images")` | 运行外部 Python 权衡脚本并返回图片输出目录；脚本路径必须存在 |
+### 架构权衡推荐流程
+
+1. 打开或生成并保存目标工程。
+2. 调用 `ExportArchitectureTradeoffObjectCode(path)`，把对象代码导出到 `OUTPUT_ROOT`（默认 `~/Sysbuilder/SysMLAIOutput`）。
+3. 基于导出的对象代码编写 UTF-8 Python 分析脚本，按模型对象属性生成雷达图、条形图、折线图等分析图；可参考 `example/architecture_tradeoff/汽车案例_SysML/architect_test.py`。
+4. 调用 `RunArchitectureTradeoff(scriptPath, imageDir)`，将图片输出到 `OUTPUT_ROOT` 下的专用目录。
+5. 检查生成图片并返回截图、对象代码路径、分析脚本路径和简明权衡结论。
 
 ---
 
@@ -57,6 +69,18 @@
 | 新建架构功能追溯矩阵 | `NewArchitectureFunctionTraceabilityMatrix(fullName)` | `NewArchitectureFunctionTraceabilityMatrix('TablesAndViews.ArchitectureFunctionTraceabilityMatrix')` | 自动配置矩阵筛选 |
 | 新建追溯分析图 | `NewRetrospectiveAnalysisDiagram(fullName)` | `NewRetrospectiveAnalysisDiagram('TraceabilityModel.TraceView')` | 不建议作为主追溯落线图 |
 
+### DoDAF/UAF 体系视图
+
+这些接口只传 `diagramName`，Sysbuilder 会自动拼接固定父包路径；调用前应使用 `NewProject(..., projectType='dodaf')` 新建 DoDAF 工程。
+
+| 视图族 | 接口 | 默认父包 | 说明 |
+| --- | --- | --- | --- |
+| AV 全景视图 | `NewAV1Diagram(diagramName='')`, `NewAV2Diagram(diagramName='')`, `NewAV3Diagram(diagramName='')` | `AV.'AV-1'` / `AV.'AV-2'` / `AV.'AV-3'` | 全景视图 |
+| CV 能力视图 | `NewCV1aDiagram(diagramName='')`, `NewCV1bDiagram(diagramName='')`, `NewCV2Diagram(diagramName='')`, `NewCV3Diagram(diagramName='')`, `NewCV4Diagram(diagramName='')`, `NewCV5Diagram(diagramName='')` | `CV.'CV-*'` | 能力视图 |
+| OV 作战视图 | `NewOV1aDiagram(diagramName='')`, `NewOV1bDiagram(diagramName='')`, `NewOV1cDiagram(diagramName='')`, `NewOV1dDiagram(diagramName='')`, `NewOV1fDiagram(diagramName='')`, `NewOV2Diagram(diagramName='')`, `NewOV4Diagram(diagramName='')`, `NewOV5aDiagram(diagramName='')`, `NewOV5bDiagram(diagramName='')`, `NewOV6bDiagram(diagramName='')`, `NewOV6cDiagram(diagramName='')` | `OV.'OV-*'` | 作战、流程和规则视图 |
+| SV 系统视图 | `NewSV1aDiagram(diagramName='')`, `NewSV1bDiagram(diagramName='')`, `NewSV2Diagram(diagramName='')`, `NewSV3Diagram(diagramName='')`, `NewSV4Diagram(diagramName='')`, `NewSV4bDiagram(diagramName='')`, `NewSV5aDiagram(diagramName='')`, `NewSV5bDiagram(diagramName='')`, `NewSV5cDiagram(diagramName='')` | `SV.'SV-*'` | 系统结构和追溯视图 |
+| DIV 数据信息视图 | `NewDIV1Diagram(diagramName='')` | `DIV.'DIV-1'` | 数据信息视图 |
+
 ---
 
 ## §3 通用元素操作
@@ -70,6 +94,7 @@
 | 新建状态机 | `NewStateMachine(fullName)` | `NewStateMachine('BehaviorModel.STM_TaskLifecycle')` | 当前无显式 `NewState` |
 | 新建用例 | `NewUseCase(fullName)` | `NewUseCase('UseCaseModel.UC_01_SingleBallSorting')` | 用例建模 |
 | 新建参与者 | `NewActor(fullName)` | `NewActor('UseCaseModel.Operator')` | 用例建模 |
+| 新建实例 | `NewInstance(fullName, definitionFullName)` | `NewInstance('ArchitectureModel.System.engine1', 'ArchitectureModel.EngineBlock')` | 按定义创建实例；定义可为模型元素全名或 `Real`/`Integer`/`Boolean`/`String` 等基础值类型短名 |
 | 新建值类型 | `NewValueType(fullName)` | `NewValueType('ParametricModel.Time_s')` | 参数模型 |
 | 新建值属性 | `NewValueProperty(fullName)` | `NewValueProperty('ParametricModel.SystemParameters.cycleTimeTarget')` | 推荐挂在参数块下 |
 | 新建组成属性 | `NewPartProperty(fullName)` | `NewPartProperty('ArchitectureModel.System.part_Scene')` | IBD 组成 |
@@ -87,7 +112,7 @@
 | --- | --- | --- | --- |
 | 设置需求 ID | `SetRequirementId(fullName, newId)` | `SetRequirementId('RequirementModel.Functions.REQ_FUN_001', 'REQ-FUN-001')` | 推荐创建后立即设置 |
 | 设置需求文本 | `SetRequirementText(fullName, newText)` | `SetRequirementText('RequirementModel.Functions.REQ_FUN_001', '系统应识别目标球位置...')` | 推荐创建后立即设置 |
-| 新建需求指标 | `NewRequirementIndex(reqFullName, indexName, indexValue, indexUnit, indexDesc)` | `NewRequirementIndex('RequirementModel.Performance.REQ_PERF_001', 'T_cycle_avg', '<=10', 's', '单球平均节拍')` | 性能需求推荐显式挂指标 |
+| 新建需求指标 | `NewRequirementIndex(reqFullName, indexName, indexValue, indexUnit, indexDesc)` | `NewRequirementIndex('RequirementModel.Performance.REQ_PERF_001', 'T_cycle_avg', '<=10', 's', '单球平均节拍')` | 性能需求推荐显式挂指标；`indexName` 为空时自动生成，非空时按 SysML2 模型名规则规范化 |
 | 导出需求 Excel | `ExportReqExcel(path, fullName='')` | `ExportReqExcel('C://exports//requirements.xlsx', 'RequirementModel')` | 可导出某个包下全部需求 |
 | 导出 ReqIF | `ExportReqIF(path, fullName='')` | `ExportReqIF('C://exports//requirements.reqif', 'RequirementModel')` | 按需使用 |
 
@@ -99,8 +124,9 @@
 | --- | --- | --- | --- |
 | 插入元素到视图 | `InsertElementToDiagram(fullElementName, fullDiagramName, position=None)` | `InsertElementToDiagram('ArchitectureModel.Scene', 'ArchitectureModel.BDD_SystemArchitecture', [120, 100])` | 许多关系要求两端先插图 |
 | 打开视图 | `OpenDiagram(fullDiagramName)` | `OpenDiagram('ArchitectureModel.BDD_SystemArchitecture')` | 调试时有用 |
-| 自动布局 | `AutoLayoutDiagram(fullDiagramName)` | `AutoLayoutDiagram('ArchitectureModel.BDD_SystemArchitecture')` | 建完图后建议调用 |
-| 导出视图图片 | `ExportDiagramImage(path, fullDiagramName, includeBorder=True)` | `ExportDiagramImage('C://exports//bdd.png', 'ArchitectureModel.BDD_SystemArchitecture', True)` | 按需使用 |
+| 自动布局 | `AutoLayoutDiagram(fullDiagramName)` | `AutoLayoutDiagram('ArchitectureModel.BDD_SystemArchitecture')` | 全部图块和连线完成后必须先调用 |
+| 画布边框最佳尺寸 | `AdjustDiagramFrameToOptimalSize(fullDiagramName)` | `AdjustDiagramFrameToOptimalSize('ArchitectureModel.BDD_SystemArchitecture')` | 必须在全部图块和连线完成并执行自动布局后调用 |
+| 导出视图图片 | `ExportDiagramImage(path, fullDiagramName, includeBorder=True)` | `ExportDiagramImage(f'{OUTPUT_ROOT}//bdd.png', 'ArchitectureModel.BDD_SystemArchitecture', True)` | 按需使用 |
 
 ---
 
@@ -154,9 +180,9 @@
 | **创建信号节点** | `CreateActivitySignalNode(fullDiagramName, graphName='', position=None)` | `CreateActivitySignalNode('BehaviorModel.ACT_Main.Diagram', 'SendSignal', [600, 200])` | **发送/接收信号** |
 | **创建时间事件节点** | `CreateActivityTimeEventNode(fullDiagramName, graphName='', position=None)` | `CreateActivityTimeEventNode('BehaviorModel.ACT_Main.Diagram', 'Timer', [300, 200])` | **时间触发** |
 | 创建控制流 | `CreateActivityControlFlowLine(fullDiagramName, startElementName, endElementName, lineName='')` | `CreateActivityControlFlowLine('ACT.Diagram', 'ACT.StageA', 'ACT.StageB')` | 用元素全名；`lineName='[guard]'` 可设置守卫 |
-| 按图形名创建控制流 | `CreateActivityControlFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName, lineName='')` | `CreateActivityControlFlowLineByGraphName('ACT.Diagram', 'DecisionCheck', 'StageA', '[valid]')` | 用于控制节点；决策/选择出线必须带守卫 |
+| 按图形名创建控制流 | `CreateActivityControlFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName, lineName='')` | `CreateActivityControlFlowLineByGraphName('ACT.Diagram', 'DecisionCheck', 'StageA', '[valid]')` | 用于控制节点；端点支持图形名或后端可解析的限定名；决策/选择出线必须带守卫 |
 | 创建对象流 | `CreateActivityObjectFlowLine(fullDiagramName, startElementName, endElementName)` | `CreateActivityObjectFlowLine('ACT.Diagram', 'ACT.OutputA.out1', 'DecisionNode')` | 数据流；支持 `元素全名.端口名` |
-| 按图形名创建对象流 | `CreateActivityObjectFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName)` | `CreateActivityObjectFlowLineByGraphName('ACT.Diagram', 'ObjectA', 'ObjectB')` | 数据流 |
+| 按图形名创建对象流 | `CreateActivityObjectFlowLineByGraphName(fullDiagramName, startGraphName, endGraphName)` | `CreateActivityObjectFlowLineByGraphName('ACT.Diagram', 'ObjectA', 'ObjectB')` | 数据流；端点支持图形名或后端可解析的限定名 |
 | 设置活动脚本 | `SetActivityScript(fullName, script, language='')` | `SetActivityScript('ACT.Calculate', 'force = mass * acc', 'Groovy')` | 活动内部处理逻辑 |
 
 ### 活动图建模推荐流程
@@ -172,6 +198,7 @@
 9. `CreateActivityJoinNode(...)` 创建汇合节点
 10. `CreateActivityFinalNode(...)` 创建结束节点
 11. `AutoLayoutDiagram(...)` 自动布局
+12. `AdjustDiagramFrameToOptimalSize(...)` 将画布边框调整到最佳尺寸
 
 ### 非线性活动图最低标准
 
@@ -235,6 +262,7 @@ CreateActivityControlFlowLineByGraphName(diagram, "发送完成信号", "结束"
 
 CreateActivityObjectFlowLine(diagram, f"{parent}.解析任务参数", f"{parent}.执行主任务")
 AutoLayoutDiagram(diagram)
+AdjustDiagramFrameToOptimalSize(diagram)
 ```
 
 ### 活动命名规范
@@ -357,7 +385,8 @@ CreateActivityObjectFlowLine(diagram, f"{parent}.计算制动需求.brake_force"
 | **创建状态** | `CreateState(fullDiagramName, graphName='', position=None)` | `CreateState('BehaviorModel.STM_Task.Diagram', 'Idle', [200, 220])` | **核心：创建状态元素** |
 | **创建组合状态** | `CreateCompositeState(fullDiagramName, graphName='', position=None)` | `CreateCompositeState('BehaviorModel.STM_Task.Diagram', 'Running', [300, 220])` | **自动创建1个区域** |
 | **创建正交状态** | `CreateOrthogonalState(fullDiagramName, graphName='', position=None)` | `CreateOrthogonalState('BehaviorModel.STM_Task.Diagram', 'Processing', [400, 220])` | **自动创建2个区域** |
-| 按图形名创建迁移 | `CreateStateTransitionLineByGraphName(fullDiagramName, startGraphName, endGraphName, lineName='')` | `CreateStateTransitionLineByGraphName('BehaviorModel.STM_Task.Diagram', 'InitialState', 'Idle', 'start_ok == true')` | **自动建图首选且必须使用 graphName；`lineName` 可设置迁移条件/守卫；若写条件变量，必须先在该状态机下创建同名值属性并设置类型与默认值** |
+| 创建子状态 | `CreateSubState(parentStateFullName, regionIndex=0, graphName='', position=None)` | `CreateSubState('BehaviorModel.STM_Task.Running', 0, '子状态A', [100, 200])` | 在组合/正交状态的指定区域内创建子状态 |
+| 按图形名创建迁移 | `CreateStateTransitionLineByGraphName(fullDiagramName, startGraphName, endGraphName, lineName='')` | `CreateStateTransitionLineByGraphName('BehaviorModel.STM_Task.Diagram', 'InitialState', 'Idle', 'start_ok == true')` | **自动建图首选使用 graphName；新版接口也支持后端可解析的限定名；若写条件变量，必须先在该状态机下创建同名值属性并设置类型与默认值** |
 | 按元素名创建迁移 | `CreateStateTransitionLine(fullDiagramName, startElementName, endElementName, lineName='')` | `CreateStateTransitionLine('BehaviorModel.STM_Task.Diagram', 'BehaviorModel.STM_Task.Idle', 'BehaviorModel.STM_Task.Running', 'retry_count < 3')` | 仅用于已存在且确认完整名的状态元素；不要作为 ByGraphName 失败后的替代；若写条件变量，也必须先创建同名值属性 |
 | 设置 Entry | `SetStateEntry(fullName, behaviorFullName)` | `SetStateEntry('AutoDoorV3.Behavior.DoorStateMachine.Closed', 'AutoDoorV3.Behavior.DoorStateMachine.EnterClosedAction')` | `fullName` 必须是状态完整元素名：状态机全名 + `.` + 状态名 |
 | 设置 DoActivity | `SetStateDoActivity(fullName, behaviorFullName)` | `SetStateDoActivity('AutoDoorV3.Behavior.DoorStateMachine.Closed', 'AutoDoorV3.Behavior.DoorStateMachine.CloseDoorAction')` | `fullName` 必须是状态完整元素名；`behaviorFullName` 可直接传 `OpaqueBehavior` 全名 |
@@ -384,6 +413,7 @@ CreateActivityObjectFlowLine(diagram, f"{parent}.计算制动需求.brake_force"
 9. `SetStateEntry/DoActivity/Exit(...)` 设置状态行为（可选但推荐至少一个）
 10. `CreateStateFinalNode(...)` 或 `CreateStateTerminateNode(...)` 创建结束/异常终止节点
 11. `AutoLayoutDiagram(...)` 自动布局
+12. `AdjustDiagramFrameToOptimalSize(...)` 将画布边框调整到最佳尺寸
 
 ### 非线性状态机最低标准
 
@@ -395,19 +425,20 @@ CreateActivityObjectFlowLine(diagram, f"{parent}.计算制动需求.brake_force"
 - 5 条以上迁移，覆盖正常路径、异常路径、恢复/重试路径和结束路径
 - 至少 1 个状态绑定 entry、doActivity 或 exit 行为
 - 建图完成后调用 `AutoLayoutDiagram(...)`
+- 自动布局完成后必须调用 `AdjustDiagramFrameToOptimalSize(...)`，将视图画布边框调整到最佳尺寸
 
 ### 状态机连线强制规则
 
 - 自动创建的状态机图块一律用 `CreateStateTransitionLineByGraphName(...)` 连线。
-- `startGraphName` / `endGraphName` 必须和创建图块时的 `graphName` 完全一致，例如先 `CreateState(diagram, "空闲", ...)`，再 `CreateStateTransitionLineByGraphName(diagram, "初始", "空闲")`。
+- `startGraphName` / `endGraphName` 优先使用创建图块时的 `graphName`；新版接口也支持后端可解析的限定名端点。
 - 状态迁移可通过第四个参数 `lineName` 设置迁移条件/守卫，例如 `CreateStateTransitionLineByGraphName(diagram, "条件判断", "执行中", "target_detected == true")`。
 - 迁移条件必须写成明确可判断的表达式，例如 `time > 1`、`target_detected == true`、`retry_count < 3`；不要只写 `1`、`2`、`加速`、`减速` 这类编号或标签。
 - 状态迁移条件中的逻辑与、逻辑或、逻辑非统一使用 `&&`、`||`、`!` 书写；不要使用 `and`、`or`、`not`，例如应写 `launch_ready == true && mission_abort == false`。
 - 迁移条件中的变量必须先以同名值属性创建在该状态机下，再在条件表达式中直接使用该值属性名。
 - 状态机下的值属性必须设置默认值，再作为迁移条件变量或状态动作变量使用。
 - 状态机下的值属性创建后，应使用 `SetType(...)` 设置对应的数值类型，例如 `Real`、`Integer`、`Boolean`、`String`。除非用户明确要求自定义值类型，否则直接设置内置类型即可，不需要额外创建值类型。
-- 不要把完整元素名传给 `CreateStateTransitionLineByGraphName(...)`，例如禁止 `"BehaviorModel.STM.空闲"`。
-- 不要在 `CreateStateTransitionLineByGraphName(...)` 失败后改用 `CreateStateTransitionLine(...)` 猜完整元素名；应检查图名、端点图块创建顺序和 `graphName` 拼写。
+- 自动建图主路径优先传简单 `graphName`；只有在后端确认可解析限定名端点时，才传限定名。
+- 不要在 `CreateStateTransitionLineByGraphName(...)` 失败后直接改用 `CreateStateTransitionLine(...)` 猜完整元素名；应先检查图名、端点创建顺序、`graphName` 拼写，以及限定名端点是否可解析。
 
 ### 复杂状态机脚本片段
 
@@ -452,6 +483,7 @@ CreateStateTransitionLineByGraphName(diagram, "等待恢复", "准备中")
 CreateStateTransitionLineByGraphName(diagram, "故障", "终止")
 
 AutoLayoutDiagram(diagram)
+AdjustDiagramFrameToOptimalSize(diagram)
 ```
 
 ### 状态命名规范
@@ -492,11 +524,13 @@ AutoLayoutDiagram(diagram)
 
 | 接口中文名 | 接口调用 | 调用示例 | 强制性说明 |
 | --- | --- | --- | --- |
-| 设置单位 | `SetUnit(fullName, newUnit)` | `SetUnit('ParametricModel.SystemParameters.cycleTimeTarget', 's')` | 值属性常用 |
-| 设置默认值 | `SetDefaultValue(fullName, newValue)` | `SetDefaultValue('ParametricModel.SystemParameters.cycleTimeTarget', '10.0')` | 默认值建议显式设置 |
+| 设置单位 | `SetUnit(fullName, newUnit)` | `SetUnit('ParametricModel.SystemParameters.cycleTimeTarget', 's')` | 常用于基础数据类型的属性或约束参数 |
+| 设置默认值 | `SetDefaultValue(fullName, newValue)` | `SetDefaultValue('ParametricModel.SystemParameters.cycleTimeTarget', '10.0')` | 常用于数据类型/值类型属性或约束参数，默认值建议显式设置 |
 | 设置元类型 | `SetMetaType(fullName, metaClassName)` | `SetMetaType('ArchitectureModel.Scene', 'SysML.Block')` | 按需使用 |
 | 设置约束表达式 | `SetConstraintExpression(fullName, expression)` | `SetConstraintExpression('ParametricModel.CycleTimeConstraint', 'T_cycle_avg <= 10.0')` | 约束块或约束属性 |
 | 创建绑定连接器 | `CreateBindingConnectorLine(fullDiagramName, startElementName, endElementName)` | `CreateBindingConnectorLine('ParametricModel.SystemParameters.PAR', 'ParametricModel.SystemParameters.mass', 'ParametricModel.SystemParameters.cycleTimeConstraint.T_mass')` | 参数图/IBD 数据绑定 |
+| 创建关系映射 | <code>CreateRelationMapping(sourceFullName, targetFullName)</code> | <code>CreateRelationMapping('Requirements.targetOrbitAltitude', 'Mission.targetOrbitAltitude')</code> | 源到目标映射；支持需求指标、活动接口、块值属性、约束输入/输出参数等可映射变量 |
+| 计算参数图 | <code>CalculateParametricDiagram(fullName)</code> | <code>CalculateParametricDiagram('Verification.AltitudeConstraint.PAR')</code> | 返回 parameter_calculation.json 绝对路径；成功看 values，失败看 error |
 
 ### 约束表达式变量规则
 
@@ -514,6 +548,22 @@ SetConstraintExpression('ParametricModel.CycleTimeConstraint', 'T_cycle_avg <= 1
 
 - 禁止直接在表达式里使用未建模的临时变量。
 
+### 关系映射与需求指标验证
+
+- CreateRelationMapping(sourceFullName, targetFullName) 的方向固定为源变量到目标变量；建立前先创建两端元素，并统一类型、单位和值语义。
+- 可映射端点包括需求指标、活动输入/输出接口、块值属性、约束输入/输出参数，以及关系映射窗口允许的其它变量。
+- 映射建立后，两端按映射保持等值；涉及约束时还要检查约束满足状态。同一变量不能映射到自身，重复创建已有映射按成功处理。
+- 关系映射负责跨模型的语义和值传递，不替代参数图内的 CreateBindingConnectorLine(...)、活动图内的 CreateActivityObjectFlowLine(...) 或 IBD 内的 CreateConnectorLine(...)。
+- 推荐验证链：需求指标 -> 活动接口 -> 块值属性 -> 约束输入参数；约束输出值和满足状态共同作为需求指标是否满足的判据。
+- 固定调用顺序：
+  1. 创建并配置需求指标、活动接口、块值属性和约束输入/输出参数。
+  2. 设置约束表达式，创建约束属性和参数图 binding connector。
+  3. 调用 CreateRelationMapping(...) 完成全部源到目标映射。
+  4. 调用 CalculateParametricDiagram(...) 执行约束计算。
+  5. 读取 parameter_calculation.json，核对 values、约束满足状态与 error。
+- CalculateParametricDiagram(...) 不打开参数图或切换视图；仅返回结果文件路径不代表计算成功或需求满足。
+
+
 ### 推荐参数建模模式
 
 1. `NewValueType`
@@ -527,3 +577,57 @@ SetConstraintExpression('ParametricModel.CycleTimeConstraint', 'T_cycle_avg <= 1
 9. `SetConstraintExpression`
 10. `NewPARDiagram`
 11. `CreateBindingConnectorLine(...)` 连接参数、端口、值属性和约束参数
+12. CreateRelationMapping(...) 建立需求指标、活动接口、块值属性与约束参数之间的跨模型映射
+13. CalculateParametricDiagram(...) 执行约束计算
+14. 读取 parameter_calculation.json，核对 values、约束满足状态和 error
+---
+
+## §12 团队协同与版本管理
+
+团队协同接口操作 Sysbuilder 当前连接实例中的团队账号和当前打开工程。MCP 将 21 个 Python API
+按领域收敛为 4 个工具，通过 `action` 选择操作。
+
+| MCP 工具 | action | 底层 API 范围 |
+| --- | --- | --- |
+| `team_session` | `login`、`logout`、`info` | 登录、退出和会话信息 |
+| `team_resources` | `list_remote`、`search_public`、`list_local`、`create_group`、`update_group`、`delete_group`、`create_repository`、`clone_repository`、`clone_group`、`publish_project` | 团队分类、远程/本地仓库、克隆与发布 |
+| `team_repository` | `status`、`commit`、`pull`、`push` | 当前团队工程工作区和远程同步 |
+| `team_history` | `list`、`details`、`restore_files`、`reset_version` | 提交历史、详情、文件还原和版本重置 |
+
+参数约定：
+
+- `team_session(action="login")` 使用 `server_address`、`user_name`、`password`；密码禁止回显。
+- `team_resources` 的 `path` 是分类或仓库的可见完整路径，`name` 是新名称或仓库名称。
+- `team_repository(action="commit")` 使用 `message` 和可选的仓库相对路径 `files`。
+- `team_history(action="details"|"reset_version")` 使用 `commit_id`；
+  `action="restore_files"` 使用 `files`。
+- `delete_group`、`restore_files` 和 `reset_version` 必须在用户明确确认后传 `confirm=true`。
+
+推荐顺序：
+
+1. `team_session(action="login", ...)`，再用 `action="info"` 确认登录状态。
+2. `team_resources(action="list_remote")` 获取 `resourcePath`，再克隆或发布工程。
+3. `team_repository(action="status")` 检查修改和冲突，再执行 `commit`、`pull`、`push`。
+4. `team_history(action="list")` 和 `action="details"` 核对历史后，再决定是否还原或重置。
+
+只有需要组合 Python 脚本时才直接调用 `LoginTeam`、`ListTeamResources`、
+`CommitTeamRepository` 等底层 API。
+
+## IBD 嵌套属性
+
+先创建组成属性并 `SetType`、`InsertElementToDiagram`，再使用
+`ShowInternalProperties(fullDiagramName, parentPropertyPath, propertyNames=None)`。
+它按界面“显示内部属性”的流程显示类型的非接口子属性，保留原类型引用。
+省略 `propertyNames` 显示全部；指定列表增量显示，`[]` 不新增，重复调用不重复创建。
+通过 `parentPropertyPath="partA.child"` 可继续展开下一层。
+MCP 提供 `show_internal_properties`，也支持通过 `run_script` 调用 API。
+
+```python
+ShowInternalProperties(diagram, "partA", ["child"])
+ShowInternalProperties(diagram, "partB", ["child"])
+CreateConnectorLine(diagram, "partA.child.out", "partB.child.in")
+AutoLayoutDiagram(diagram)
+```
+
+连线端点支持嵌套属性和端口路径。同一类型的多个宿主使用各自路径；
+带点的属性名用单引号包裹，如 `"partA.'child.v1'.out"`。
